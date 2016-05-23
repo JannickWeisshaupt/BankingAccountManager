@@ -97,7 +97,10 @@ class SparkasseDataframe:
     def reset(self):
         self.longterm_data = None  
 
-            
+    def find_subset_contains(self,column,string):
+        df = self.longterm_data
+        self.chosen_subset = df[df[column].str.contains(string,case=False).fillna(False)]
+        
 if __name__ == "__main__":
     sd = SparkasseDataframe()
 ##    sd.load_data('umsatz.CSV')

@@ -36,6 +36,14 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 q1 = queue.Queue()
 
 
+class NewCBox(ttk.Combobox):
+    def __init__(self, master, dictionary,current=0, *args, **kw):
+        ttk.Combobox.__init__(self, master, values = sorted(list(dictionary.keys())), state = 'readonly', *args, **kw)
+        self.dictionary = dictionary
+        self.set(current)
+    def value(self):
+        return self.dictionary[self.get()]
+
 class DataFrame(tk.Frame):
 
     def __init__(self,master):
@@ -83,6 +91,30 @@ class DataFrame(tk.Frame):
         self.tagL_value = ttk.Label(self,text='',justify=tk.LEFT,width=width_value,anchor=tk.W)
         self.tagL_value.grid(row=8,column=1,pady=3,sticky='w')
 
+
+        self.subframe1 = tk.Frame(self)
+        self.subframe1.grid(row=9,column=0,columnspan=2,sticky='nwse')
+
+        self.header2 = ttk.Label(self.subframe1,text='Optionen',justify=tk.CENTER,font=("Helvetica", 20))
+        self.header2.grid(row=0,column=0,columnspan=2,pady=10)
+
+        searchL = ttk.Label(self.subframe1,text='Suchen:',justify=tk.LEFT,anchor=tk.W)
+        searchL.grid(row=1,column=0,sticky='w',padx=5)
+
+        search_dic = {'Verwendungszweck':'Verwendungszweck'}
+
+        self.search_combo = NewCBox(self.subframe1,search_dic )
+        self.search_combo.grid(row=1,column=1,sticky='w')
+        self.search_combo.current(0)
+
+        self.search_field = ttk.Entry(self.subframe1)
+        self.search_field.grid(row=1,column=2,padx=5)
+
+        self.search_checkvar = tk.BooleanVar()
+        self.search_checkvar.set(False)
+        self.search_checkbutton = ttk.Checkbutton(self.subframe1, text="Aktiv",variable = self.search_checkvar,takefocus = False)
+        self.search_checkbutton.grid(row = 1,column=3,sticky='w')
+        
     def update(self):
         beg = sd.longterm_data.at[app.chosen_data,'Beguenstigter/Zahlungspflichtiger']
         kontostand = sd.longterm_data.at[app.chosen_data,'SumBetrag']
@@ -92,8 +124,6 @@ class DataFrame(tk.Frame):
         kontonummer = sd.longterm_data.at[app.chosen_data,'Kontonummer']
         waehrung = sd.longterm_data.at[app.chosen_data,'Waehrung']
         blz = sd.longterm_data.at[app.chosen_data,'BLZ']
-
-        
 
         if type(waehrung) is float:
             waehrung = 'EUR'
@@ -136,6 +166,11 @@ class EmbeddedFigure:
         if sd.longterm_data is None:
             return
 
+        if not app.dataframe.search_checkvar.get():
+            self.search_active_bool = True
+        else:
+            self.search_active_bool = False
+            
         self.subplot1.clear()
         plot1 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,linewidth=3,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False, drawstyle='steps-post')
         plot2 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,marker='o',linewidth=0,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False)
@@ -206,6 +241,59 @@ EF1 = EmbeddedFigure()
 
 
 class Application(tk.Frame):
+
+    def new_database_frame(self):
+        self.temp_database_filename = None
+        root_fr = tk.Toplevel()
+        root_fr.geometry('{}x{}'.format(600, 300))
+        root_fr.wm_title("Neue Datenbank")
+##        root_fr.iconbitmap(r'camera.ico')
+        root_fr.resizable(width=False, height=False)
+
+        InformationFrame = tk.Frame(root_fr)
+        InformationFrame.grid(row = 0,column=0,sticky='ewns')
+
+
+        label2 =tk.Label(InformationFrame,text="File Name: ")
+        label2.grid(row = 0,column =0,sticky='w')
+    
+        labelDir = tk.Label(InformationFrame,bg = 'white',relief='ridge',width=60)
+        labelDir.grid(row = 0,column =1,sticky='w')
+
+
+        
+        def ask_filename_database(labelDir):
+            root_fr.lift()
+            temp_filename = filedialog.asksaveasfilename(initialdir='./databases',filetypes = [('Databases', '.pkl'), ('all files', '.*')])
+            root_fr.lift()
+            if len(temp_filename) == 0:
+                return
+            elif temp_filename[-4] == '.':
+                temp_filename = temp_filename[:-4]
+            self.temp_database_filename = temp_filename
+            labelDir.config(text= temp_filename)
+
+        SaveDirectoryButton = ttk.Button(InformationFrame,width=8, text='Name',command =lambda: ask_filename_database(labelDir),takefocus = False)
+        SaveDirectoryButton.grid(column=21,row=0,padx=5,pady=3)
+        
+        ButtonFrame = tk.Frame(root_fr)
+        ButtonFrame.grid(row = 1,column=0,columnspan =2,sticky='ewns')
+
+        def ask_new_database():
+            if messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht'):
+                self.create_new_database()
+                self.database_filename = self.temp_database_filename
+
+        OkBut=ttk.Button(ButtonFrame,text="Ok",command=ask_new_database)
+        OkBut.grid(row=0,column=0,ipady=5)
+
+        CancelBut =ttk.Button(ButtonFrame,text="Abbrechen",command=root_fr.destroy)
+        CancelBut.grid(row=0,column=1,ipady=5)
+
+    def create_new_database(self):
+        sd.reset()
+        EF1.reset()
+        self.database_filename = None
     
     def update_status(self):
         root.after(1, lambda: self.update_status())
@@ -220,11 +308,7 @@ class Application(tk.Frame):
             else:
                 logging.warning("Command \""+str(q_command) + "\" in queue could not be executed")
 
-    def new_database(self):
-        if messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht'):
-            sd.reset()
-            EF1.reset()
-            self.database_filename = None
+
             
     def load_database(self):
         OpenFilename = filedialog.askopenfilename(initialdir = './databases',filetypes = [('Databases', '.pkl'), ('all files', '.*')])
@@ -276,7 +360,7 @@ class Application(tk.Frame):
         self.filemenu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="File", menu=self.filemenu)
         
-        self.filemenu.add_command(label="New Database", command=self.new_database)
+        self.filemenu.add_command(label="New Database", command=self.new_database_frame)
         self.filemenu.add_command(label="Load Database", command=self.load_database)
         self.filemenu.add_command(label="Save Database", command=self.save_database)
         self.filemenu.add_command(label="Save Database as", command=self.save_database_as)
