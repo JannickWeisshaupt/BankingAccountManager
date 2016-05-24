@@ -103,12 +103,12 @@ class DataFrame(tk.Frame):
         self.header2.grid(row=0,column=0,columnspan=2,pady=10)
 
         searchL = ttk.Label(self.subframe1,text='Suchen:',justify=tk.LEFT,anchor=tk.W)
-        searchL.grid(row=1,column=0,sticky='w',padx=5)
+        searchL.grid(row=1,column=0,sticky='w',pady=10)
 
         search_dic = {'BLZ':'BLZ','Betrag':'Betrag' ,'Verwendungszweck':'Verwendungszweck','Datum':'Buchungstag','Begünstigter/Zahlungspflichtiger':'Beguenstigter/Zahlungspflichtiger'}
 
         self.search_combo = NewCBox(self.subframe1,search_dic,width=30 )
-        self.search_combo.grid(row=1,column=1,sticky='w')
+        self.search_combo.grid(row=1,column=1,sticky='w',padx=5)
         self.search_combo.current(0)
 
         def handle_update_event(event):
@@ -117,24 +117,39 @@ class DataFrame(tk.Frame):
             self.after(200,lambda: handle_update_event2(counter) )
             
 
-        def handle_update_event2(counter):
-            if self.update_counter == counter:
+        def handle_update_event2(counter,omit_counter=False):
+            if self.update_counter == counter or omit_counter:
                 master.update_search()
 
 
         self.search_combo.bind("<<ComboboxSelected>>", handle_update_event)
 
+        def return_press_handler(event):
+            self.search_checkvar.set(True)
+            handle_update_event2(0,omit_counter=True)
 
         self.search_field = ttk.Entry(self.subframe1)
         self.search_field.grid(row=1,column=2,padx=5)
         self.search_field.bind('<Key>',handle_update_event)
-        self.search_field.bind('<Return>',lambda event: self.search_checkvar.set(True))
+        self.search_field.bind('<Return>',return_press_handler )
 
         self.search_checkvar = tk.BooleanVar()
         self.search_checkvar.set(False)
         self.search_checkbutton = ttk.Checkbutton(self.subframe1, text="Aktiv",variable = self.search_checkvar,command=master.update_search,takefocus = False)
         self.search_checkbutton.grid(row = 1,column=3,sticky='w')
+
+        self.subframe2 = tk.Frame(self)
+        self.subframe2.grid(row=10,column=0,columnspan=2,sticky='nwse')
+
+        self.NfoundL = ttk.Label(self.subframe2,text='Gefundene Einträge:',justify=tk.LEFT,anchor=tk.W)
+        self.NfoundL.grid(row=0,column=0,pady=3,sticky='w')
+        self.NfoundL_value = ttk.Label(self.subframe2,text='',justify=tk.LEFT,width=width_value,anchor=tk.W)
+        self.NfoundL_value.grid(row=0,column=1,pady=3,sticky='w')        
         
+        self.totsumL = ttk.Label(self.subframe2,text='Gesamtsumme:',justify=tk.LEFT,anchor=tk.W)
+        self.totsumL.grid(row=1,column=0,pady=3,sticky='w')
+        self.totsumL_value = ttk.Label(self.subframe2,text='',justify=tk.LEFT,width=width_value,anchor=tk.W)
+        self.totsumL_value.grid(row=1,column=1,pady=3,sticky='w')     
         
     def update(self):
 
@@ -151,6 +166,7 @@ class DataFrame(tk.Frame):
         kontonummer = chosen_subset.at[app.chosen_data,'Kontonummer']
         waehrung = chosen_subset.at[app.chosen_data,'Waehrung']
         blz = chosen_subset.at[app.chosen_data,'BLZ']
+
 
         if type(waehrung) is float:
             waehrung = 'EUR'
@@ -172,6 +188,19 @@ class DataFrame(tk.Frame):
         self.ktnrL_value.config(text = kontonummer )
         self.blzL_value.config(text = blz )
         self.tagL_value.config(text = dt.datetime.date(buchungstag))
+
+    def update_search(self):
+    
+
+        if app.search_active_bool:
+            chosen_subset = sd.chosen_subset
+            gesamtsumme = chosen_subset['Betrag'].sum()
+            Nfound = len(chosen_subset)
+            self.NfoundL_value.config(text=str(Nfound))
+            self.totsumL_value.config(text='{:1.2f}'.format(gesamtsumme))
+        else:
+            self.NfoundL_value.config(text='')
+            self.totsumL_value.config(text='')
 
 class EmbeddedFigure:
     def __init__(self):
@@ -339,13 +368,14 @@ class Application(tk.Frame):
                 search_string.replace(',','.')
                 sd.find_subset(column,float(search_string))
             else:
-                sd.find_subset_contains(column,search_string)
-
+                sd.find_subset_contains(column,search_string)      
                 
             self.search_active_bool = True
+            
         else:
             self.search_active_bool = False
-            
+
+        self.dataframe.update_search() 
         q1.put('Update Plot')
 
 
