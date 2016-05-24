@@ -47,9 +47,13 @@ class NewCBox(ttk.Combobox):
 class DataFrame(tk.Frame):
 
     def __init__(self,master):
+
+
+        
         super().__init__(master)
 
         width_value = 40
+        self.update_counter = 0
 
         self.header = ttk.Label(self,text='Vorgangsinformation',justify=tk.CENTER,font=("Helvetica", 20))
         self.header.grid(row=0,column=0,columnspan=2,pady=10)
@@ -101,29 +105,52 @@ class DataFrame(tk.Frame):
         searchL = ttk.Label(self.subframe1,text='Suchen:',justify=tk.LEFT,anchor=tk.W)
         searchL.grid(row=1,column=0,sticky='w',padx=5)
 
-        search_dic = {'Verwendungszweck':'Verwendungszweck'}
+        search_dic = {'BLZ':'BLZ','Betrag':'Betrag' ,'Verwendungszweck':'Verwendungszweck','Datum':'Buchungstag','Begünstigter/Zahlungspflichtiger':'Beguenstigter/Zahlungspflichtiger'}
 
-        self.search_combo = NewCBox(self.subframe1,search_dic )
+        self.search_combo = NewCBox(self.subframe1,search_dic,width=30 )
         self.search_combo.grid(row=1,column=1,sticky='w')
         self.search_combo.current(0)
 
+        def handle_update_event(event):
+            self.update_counter += 1
+            counter = self.update_counter
+            self.after(200,lambda: handle_update_event2(counter) )
+            
+
+        def handle_update_event2(counter):
+            if self.update_counter == counter:
+                master.update_search()
+
+
+        self.search_combo.bind("<<ComboboxSelected>>", handle_update_event)
+
+
         self.search_field = ttk.Entry(self.subframe1)
         self.search_field.grid(row=1,column=2,padx=5)
+        self.search_field.bind('<Key>',handle_update_event)
+        self.search_field.bind('<Return>',lambda event: self.search_checkvar.set(True))
 
         self.search_checkvar = tk.BooleanVar()
         self.search_checkvar.set(False)
-        self.search_checkbutton = ttk.Checkbutton(self.subframe1, text="Aktiv",variable = self.search_checkvar,takefocus = False)
+        self.search_checkbutton = ttk.Checkbutton(self.subframe1, text="Aktiv",variable = self.search_checkvar,command=master.update_search,takefocus = False)
         self.search_checkbutton.grid(row = 1,column=3,sticky='w')
         
+        
     def update(self):
-        beg = sd.longterm_data.at[app.chosen_data,'Beguenstigter/Zahlungspflichtiger']
-        kontostand = sd.longterm_data.at[app.chosen_data,'SumBetrag']
-        betrag = sd.longterm_data.at[app.chosen_data,'Betrag']
-        buchungstag = sd.longterm_data.at[app.chosen_data,'Buchungstag']
-        verwendungszweck = str(sd.longterm_data.at[app.chosen_data,'Verwendungszweck'])
-        kontonummer = sd.longterm_data.at[app.chosen_data,'Kontonummer']
-        waehrung = sd.longterm_data.at[app.chosen_data,'Waehrung']
-        blz = sd.longterm_data.at[app.chosen_data,'BLZ']
+
+        if app.search_active_bool and len(sd.chosen_subset) > 0:
+            chosen_subset = sd.chosen_subset
+        else:
+            chosen_subset = sd.longterm_data
+        
+        beg = chosen_subset.at[app.chosen_data,'Beguenstigter/Zahlungspflichtiger']
+        kontostand = chosen_subset.at[app.chosen_data,'SumBetrag']
+        betrag = chosen_subset.at[app.chosen_data,'Betrag']
+        buchungstag = chosen_subset.at[app.chosen_data,'Buchungstag']
+        verwendungszweck = str(chosen_subset.at[app.chosen_data,'Verwendungszweck'])
+        kontonummer = chosen_subset.at[app.chosen_data,'Kontonummer']
+        waehrung = chosen_subset.at[app.chosen_data,'Waehrung']
+        blz = chosen_subset.at[app.chosen_data,'BLZ']
 
         if type(waehrung) is float:
             waehrung = 'EUR'
@@ -166,22 +193,36 @@ class EmbeddedFigure:
         if sd.longterm_data is None:
             return
 
-        if not app.dataframe.search_checkvar.get():
-            self.search_active_bool = True
-        else:
-            self.search_active_bool = False
-            
         self.subplot1.clear()
-        plot1 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,linewidth=3,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False, drawstyle='steps-post')
-        plot2 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,marker='o',linewidth=0,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False)
 
+        if app.search_active_bool and len(sd.chosen_subset) > 0:
+            plot_alpha = 0.3
+            line_index = 2
+            self.search_empty_bool = False
+            
+        elif app.search_active_bool and len(sd.chosen_subset) == 0:
+            line_index = 0
+            plot_alpha = 0.3
+            self.search_empty_bool = True
 
-##            i_rub = app_chosen_index
-##            single_point = self.subplot1.plot(self.point_data_unconv[i_rub,0],self.point_data_unconv[i_rub,1],'bo')
+        else:
+            plot_alpha = 1
+            line_index = 0
+            
+
+        plot1 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,linewidth=3,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False, drawstyle='steps-post',alpha=plot_alpha)
+        plot2 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,marker='o',linewidth=0,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False,alpha=plot_alpha)
+
+        if app.search_active_bool and len(sd.chosen_subset)>0:
+            plot3 = sd.chosen_subset.plot(x='Buchungstag',y='SumBetrag',grid=True,marker='o',linewidth=0,ax=self.subplot1,color='g',legend=False,ms=10)
+
 
         lines =     self.subplot1.get_lines()
-        xdata = lines[0].get_data()[0]
-        ydata = lines[0].get_data()[1]
+
+        
+        
+        xdata = lines[line_index].get_data()[0]
+        ydata = lines[line_index].get_data()[1]
 
 ##        xdata_conv = (xdata-dt.datetime(1,1,1)).total_seconds()/60/60/24
 
@@ -290,6 +331,24 @@ class Application(tk.Frame):
         CancelBut =ttk.Button(ButtonFrame,text="Abbrechen",command=root_fr.destroy)
         CancelBut.grid(row=0,column=1,ipady=5)
 
+    def update_search(self):
+        search_string = self.dataframe.search_field.get()
+        if self.dataframe.search_checkvar.get() and not search_string.isspace() and len(search_string)>0:
+            column = self.dataframe.search_combo.value()
+            if column == 'Betrag':
+                search_string.replace(',','.')
+                sd.find_subset(column,float(search_string))
+            else:
+                sd.find_subset_contains(column,search_string)
+
+                
+            self.search_active_bool = True
+        else:
+            self.search_active_bool = False
+            
+        q1.put('Update Plot')
+
+
     def create_new_database(self):
         sd.reset()
         EF1.reset()
@@ -376,6 +435,7 @@ class Application(tk.Frame):
 
 
         def read_coordinates(event):
+            EF1.canvas._tkcanvas.focus_set()
             if event.xdata is None or event.ydata is None:
                 return
             if event.button == 1:
@@ -412,7 +472,7 @@ class Application(tk.Frame):
         self.dataframe.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
     
     def __init__(self):
-
+        self.search_active_bool = False
         self.chosen_data = None
         self.database_filename = None
         

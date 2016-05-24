@@ -13,7 +13,7 @@ class SparkasseDataframe:
 
     def __init__(self):
         self.longterm_data = None
-
+        self.chosen_subset = None
     def sanitize_data(self,data):
         data.drop_duplicates(inplace=True,subset=['Betrag','Buchungstag','Kontonummer','Verwendungszweck'])
         data.sort_values(by='Buchungstag',ascending=True,inplace=True)
@@ -83,7 +83,9 @@ class SparkasseDataframe:
     def find_subset(self,column,value):
         if column == 'Buchungstag':
             value = datetime.strptime(value,'%Y-%m-%d')
-        return self.longterm_data.loc[self.longterm_data[column] == value]
+        self.chosen_subset =  self.longterm_data.loc[self.longterm_data[column] == value]
+        self.chosen_subset.reset_index(drop=True,inplace=True)
+
 
     def export_daterange(self,datestart,dateend):
         datestart = datetime.strptime(datestart,'%Y-%m-%d')
@@ -100,6 +102,7 @@ class SparkasseDataframe:
     def find_subset_contains(self,column,string):
         df = self.longterm_data
         self.chosen_subset = df[df[column].str.contains(string,case=False).fillna(False)]
+        self.chosen_subset.reset_index(drop=True,inplace=True)
         
 if __name__ == "__main__":
     sd = SparkasseDataframe()
