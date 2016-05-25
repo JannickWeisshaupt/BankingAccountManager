@@ -4,6 +4,7 @@ from tkinter import messagebox
 from tkinter import filedialog
 import numpy as np
 import pandas as pd
+import os
 
 import datetime as dt
 import ctypes
@@ -26,6 +27,15 @@ from SparkasseDataframe import SparkasseDataframe
 
 sd = SparkasseDataframe()
 
+
+if not os.path.exists('./logfiles'):
+    os.makedirs('./logfiles')
+
+if not os.path.exists('./databases'):
+    os.makedirs('./databases')
+
+if not os.path.exists('./CSV'):
+    os.makedirs('./CSV')
 
 logging.basicConfig(level=logging.DEBUG, filename="logfiles/logfile_"+ str(dt.datetime.date(dt.datetime.today()))+ ".log", filemode="a+",format="%(asctime)-15s %(levelname)-8s %(message)s")
 logging.info('Program started')
@@ -53,7 +63,7 @@ class DataFrame(tk.Frame):
         super().__init__(master)
 
         width_value = 40
-        self.update_counter = 0
+        self._after_id = None
 
         self.header = ttk.Label(self,text='Vorgangsinformation',justify=tk.CENTER,font=("Helvetica", 20))
         self.header.grid(row=0,column=0,columnspan=2,pady=10)
@@ -111,27 +121,30 @@ class DataFrame(tk.Frame):
         self.search_combo.grid(row=1,column=1,sticky='w',padx=5)
         self.search_combo.current(0)
 
-        def handle_update_event(event):
-            self.update_counter += 1
-            counter = self.update_counter
-            self.after(200,lambda: handle_update_event2(counter) )
-            
-
-        def handle_update_event2(counter,omit_counter=False):
-            if self.update_counter == counter or omit_counter:
-                master.update_search()
+        def handle_update_event(*args):
+            # cancel the old job
+            if self._after_id is not None:
+                master.after_cancel(self._after_id)
+            # create a new job
+            self._after_id = master.after(100, master.update_search)
 
 
         self.search_combo.bind("<<ComboboxSelected>>", handle_update_event)
 
         def return_press_handler(event):
             self.search_checkvar.set(True)
-            handle_update_event2(0,omit_counter=True)
+            master.update_search()
+
+        def escape_press_handler(event):
+            self.search_checkvar.set(False)
+            master.update_search()
 
         self.search_field = ttk.Entry(self.subframe1)
         self.search_field.grid(row=1,column=2,padx=5)
         self.search_field.bind('<Key>',handle_update_event)
         self.search_field.bind('<Return>',return_press_handler )
+        self.search_field.bind('<Escape>',escape_press_handler )
+
 
         self.search_checkvar = tk.BooleanVar()
         self.search_checkvar.set(False)
@@ -205,7 +218,7 @@ class DataFrame(tk.Frame):
 class EmbeddedFigure:
     def __init__(self):
         plt.ion()
-        self.f = plt.Figure(figsize=(10,8))
+        self.f = plt.Figure(figsize=(10,10))
         gs = gridspec.GridSpec(1, 1, height_ratios=[1])
         self.subplot1 = self.f.add_subplot(gs[0])
 ##        self.subplot2=  self.f.add_subplot(gs[1])
@@ -350,9 +363,10 @@ class Application(tk.Frame):
         ButtonFrame.grid(row = 1,column=0,columnspan =2,sticky='ewns')
 
         def ask_new_database():
-            if messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht'):
+            if sd.longterm_data is None or messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht'):
                 self.create_new_database()
                 self.database_filename = self.temp_database_filename
+                root_fr.destroy()
 
         OkBut=ttk.Button(ButtonFrame,text="Ok",command=ask_new_database)
         OkBut.grid(row=0,column=0,ipady=5)
@@ -383,6 +397,7 @@ class Application(tk.Frame):
         sd.reset()
         EF1.reset()
         self.database_filename = None
+        self.main_auftragskonto = None
     
     def update_status(self):
         root.after(1, lambda: self.update_status())
@@ -406,7 +421,7 @@ class Application(tk.Frame):
             return
 
         sd.load_database(OpenFilename,overwrite=True)
-        self.database_filename = OpenFilename
+        self.database_filename = OpenFilename[:-4]
         self.main_auftragskonto = sd.longterm_data['Auftragskonto'].value_counts().idxmax()
         q1.put('Update Plot')
 
@@ -417,10 +432,9 @@ class Application(tk.Frame):
             return
         main_auftragkonto_load = sd.get_main_auftragskonto(OpenFilename)
 
-        if main_auftragkonto_load !=self.main_auftragskonto:
+        if main_auftragkonto_load !=self.main_auftragskonto and self.main_auftragskonto is not None:
             if not messagebox.askokcancel('Sicherheitsabfrage','Kontonummer des CSVs stimmen nicht mit bestehenden Daten überein. Trotzdem fortfahren?'):
                 return
-    
             
         info = sd.load_data(OpenFilename)
         q1.put('Update Plot')
@@ -428,7 +442,7 @@ class Application(tk.Frame):
 
     def save_database(self):
         if self.database_filename is not None:
-            sd.save_database(self.database_filename[:-4],overwrite=True)
+            sd.save_database(self.database_filename,overwrite=True)
         else:
             self.save_database_as()
 
@@ -449,16 +463,16 @@ class Application(tk.Frame):
         self.filemenu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="File", menu=self.filemenu)
         
-        self.filemenu.add_command(label="New Database", command=self.new_database_frame)
-        self.filemenu.add_command(label="Load Database", command=self.load_database)
-        self.filemenu.add_command(label="Save Database", command=self.save_database)
-        self.filemenu.add_command(label="Save Database as", command=self.save_database_as)
+        self.filemenu.add_command(label="New Database", command=self.new_database_frame, accelerator="Strq+n")
+        self.filemenu.add_command(label="Load Database", command=self.load_database, accelerator="Strq+l")
+        self.filemenu.add_command(label="Save Database", command=self.save_database, accelerator="Strq+s")
+        self.filemenu.add_command(label="Save Database as", command=self.save_database_as, accelerator="Strq+Shift+s")
         
         self.filemenu.add_command(label="Add csv", command=self.import_csv)
 
 
         self.filemenu.add_separator()
-        self.filemenu.add_command(label="Exit", command=self.quit_program)
+        self.filemenu.add_command(label="Exit", command=self.quit_program, accelerator="Strq+q")
 
         canvasFrame = tk.Frame(self,takefocus = False)
         canvasFrame.pack(side=tk.LEFT, fill=tk.BOTH,expand=True)
@@ -481,10 +495,10 @@ class Application(tk.Frame):
                 app.chosen_data += 1 
             elif key == 'left' and app.chosen_data>0:
                 app.chosen_data += -1
-
+            else:
+                return
+            
             EF1.last_selected_point = EF1.point_data[app.chosen_data,:]
-
-##            print(sd.longterm_data.ix[app.chosen_data])
             q1.put('Update Dataframe')
             q1.put('Add selected to plot')
 
@@ -493,8 +507,8 @@ class Application(tk.Frame):
         EF1.canvas.mpl_connect('button_press_event', read_coordinates)
         EF1.canvas.mpl_connect('key_press_event', handle_figure_key_press)
         EF1.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-        EF1.toolbar = NavigationToolbar2TkAgg(EF1.canvas, canvasFrame)
-        EF1.toolbar.update()
+##        EF1.toolbar = NavigationToolbar2TkAgg(EF1.canvas, canvasFrame)
+##        EF1.toolbar.update()
         EF1.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 
@@ -516,8 +530,17 @@ class Application(tk.Frame):
         self.create_widgets()
         root.config(menu=self.menubar)
         root.title('Konto Verwaltungssoftware')
+        ## Root bindings
+        self.bind('<Control-s>',lambda event: self.save_database )    
 ##        sd.load_database('./databases/test_database.pkl')  # for testing faster
         q1.put('Update Plot')
+        ## Root bindings
+        root.bind_all('<Control-s>',lambda event: self.save_database() )
+        root.bind_all('<Control-S>',lambda event: self.save_database_as() )      
+        root.bind_all('<Control-q>',lambda event: self.quit_program() )      
+        root.bind_all('<Control-l>',lambda event: self.load_database() )      
+        root.bind_all('<Control-n>',lambda event: self.new_database_frame() )      
+
 
 root = tk.Tk()
 app = Application()
