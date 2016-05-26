@@ -139,10 +139,6 @@ class DataFrame(tk.Frame):
             self.search_checkvar.set(False)
             master.update_search()
 
-
-        def escape_press_handler(event):
-            self.search_checkvar.set(False)
-            handle_update_event2(0,omit_counter=True)
     
         self.search_field = ttk.Entry(self.subframe1)
         self.search_field.grid(row=1,column=2,padx=5)
