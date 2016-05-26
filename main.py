@@ -128,10 +128,17 @@ class DataFrame(tk.Frame):
             self.search_checkvar.set(True)
             handle_update_event2(0,omit_counter=True)
 
+
+        def escape_press_handler(event):
+            self.search_checkvar.set(False)
+            handle_update_event2(0,omit_counter=True)
+    
         self.search_field = ttk.Entry(self.subframe1)
         self.search_field.grid(row=1,column=2,padx=5)
         self.search_field.bind('<Key>',handle_update_event)
         self.search_field.bind('<Return>',return_press_handler )
+        self.search_field.bind('<Escape>',escape_press_handler )
+
 
         self.search_checkvar = tk.BooleanVar()
         self.search_checkvar.set(False)
@@ -205,7 +212,7 @@ class DataFrame(tk.Frame):
 class EmbeddedFigure:
     def __init__(self):
         plt.ion()
-        self.f = plt.Figure(figsize=(10,8))
+        self.f = plt.Figure(figsize=(10,10))
         gs = gridspec.GridSpec(1, 1, height_ratios=[1])
         self.subplot1 = self.f.add_subplot(gs[0])
 ##        self.subplot2=  self.f.add_subplot(gs[1])
@@ -317,7 +324,6 @@ class Application(tk.Frame):
         root_fr = tk.Toplevel()
         root_fr.geometry('{}x{}'.format(600, 300))
         root_fr.wm_title("Neue Datenbank")
-##        root_fr.iconbitmap(r'camera.ico')
         root_fr.resizable(width=False, height=False)
 
         InformationFrame = tk.Frame(root_fr)
@@ -493,8 +499,8 @@ class Application(tk.Frame):
         EF1.canvas.mpl_connect('button_press_event', read_coordinates)
         EF1.canvas.mpl_connect('key_press_event', handle_figure_key_press)
         EF1.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-        EF1.toolbar = NavigationToolbar2TkAgg(EF1.canvas, canvasFrame)
-        EF1.toolbar.update()
+##        EF1.toolbar = NavigationToolbar2TkAgg(EF1.canvas, canvasFrame)
+##        EF1.toolbar.update()
         EF1.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 
@@ -516,6 +522,7 @@ class Application(tk.Frame):
         self.create_widgets()
         root.config(menu=self.menubar)
         root.title('Konto Verwaltungssoftware')
+        root.iconbitmap(r'EuroIcon.ico')
 ##        sd.load_database('./databases/test_database.pkl')  # for testing faster
         q1.put('Update Plot')
 
