@@ -115,7 +115,7 @@ class DataFrame(tk.Frame):
         searchL = ttk.Label(self.subframe1,text='Suchen:',justify=tk.LEFT,anchor=tk.W)
         searchL.grid(row=1,column=0,sticky='w',pady=10)
 
-        search_dic = {'BLZ':'BLZ','Betrag':'Betrag' ,'Verwendungszweck':'Verwendungszweck','Datum':'Buchungstag','Begünstigter/Zahlungspflichtiger':'Beguenstigter/Zahlungspflichtiger'}
+        search_dic = {'Kontonummer':'Kontonummer' ,'BLZ':'BLZ','Betrag':'Betrag' ,'Verwendungszweck':'Verwendungszweck','Datum':'Buchungstag','Begünstigter/Zahlungspflichtiger':'Beguenstigter/Zahlungspflichtiger'}
 
         self.search_combo = NewCBox(self.subframe1,search_dic,width=30 )
         self.search_combo.grid(row=1,column=1,sticky='w',padx=5)
@@ -321,19 +321,18 @@ EF1 = EmbeddedFigure()
 
 
 
+class NewDatabaseFrame(tk.Toplevel):
 
-
-
-class Application(tk.Frame):
-
-    def new_database_frame(self):
+    def __init__(self,master):
+        super().__init__(master)
+        self.master = master
+        self.geometry('{}x{}'.format(600, 300))
+        self.wm_title("Neue Datenbank")
+        self.resizable(width=False, height=False)
         self.temp_database_filename = None
-        root_fr = tk.Toplevel()
-        root_fr.geometry('{}x{}'.format(600, 300))
-        root_fr.wm_title("Neue Datenbank")
-        root_fr.resizable(width=False, height=False)
 
-        InformationFrame = tk.Frame(root_fr)
+        
+        InformationFrame = tk.Frame(self)
         InformationFrame.grid(row = 0,column=0,sticky='ewns')
 
 
@@ -341,14 +340,10 @@ class Application(tk.Frame):
         label2.grid(row = 0,column =0,sticky='w')
     
         labelDir = tk.Label(InformationFrame,bg = 'white',relief='ridge',width=60)
-        labelDir.grid(row = 0,column =1,sticky='w')
-
-
-        
+        labelDir.grid(row = 0,column =1,sticky='w',columnspan=2)
+    
         def ask_filename_database(labelDir):
-            root_fr.lift()
-            temp_filename = filedialog.asksaveasfilename(initialdir='./databases',filetypes = [('Databases', '.pkl'), ('all files', '.*')])
-            root_fr.lift()
+            temp_filename = filedialog.asksaveasfilename(initialdir='./databases',filetypes = [('Databases', '.pkl'), ('all files', '.*')],parent=self)
             if len(temp_filename) == 0:
                 return
             elif temp_filename[-4] == '.':
@@ -357,22 +352,51 @@ class Application(tk.Frame):
             labelDir.config(text= temp_filename)
 
         SaveDirectoryButton = ttk.Button(InformationFrame,width=8, text='Name',command =lambda: ask_filename_database(labelDir),takefocus = False)
-        SaveDirectoryButton.grid(column=21,row=0,padx=5,pady=3)
+        SaveDirectoryButton.grid(column=3,row=0,padx=5,pady=3)
+
+
+        KontostandL =tk.Label(InformationFrame,text="Aktueller Kontostand: ")
+        KontostandL.grid(row = 1,column =0,sticky='w')
+
+        KontostandL_value = ttk.Entry(InformationFrame,width=10)
+        KontostandL_value.grid(row = 1,column =1,sticky='w')
+
+        KontostandL2 =tk.Label(InformationFrame,text="Bitte im Format 10.000,23 oder 10000,23 eingeben")
+        KontostandL2.grid(row = 1,column =2,sticky='w',padx=5)        
         
-        ButtonFrame = tk.Frame(root_fr)
+        ButtonFrame = tk.Frame(self)
         ButtonFrame.grid(row = 1,column=0,columnspan =2,sticky='ewns')
 
-        def ask_new_database():
-            if sd.longterm_data is None or messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht'):
-                self.create_new_database()
-                self.database_filename = self.temp_database_filename
-                root_fr.destroy()
 
-        OkBut=ttk.Button(ButtonFrame,text="Ok",command=ask_new_database)
-        OkBut.grid(row=0,column=0,ipady=5)
+        OkBut=ttk.Button(ButtonFrame,text="Ok",command=self.ask_new_database)
+        OkBut.grid(row=0,column=0,ipady=5,pady=10)
 
-        CancelBut =ttk.Button(ButtonFrame,text="Abbrechen",command=root_fr.destroy)
+        CancelBut =ttk.Button(ButtonFrame,text="Abbrechen",command=self.destroy)
         CancelBut.grid(row=0,column=1,ipady=5)
+
+    def ask_new_database(self):
+        missing_string = None
+        if self.temp_database_filename is None:
+            missing_string = 'Filename'
+            
+        if missing_string is not None and not messagebox.askokcancel('Unvollständige Anhaben','Sie haben nichts im Feld '+missing_string+ 'eingetragen. Trotzdem fortfahren?',parent=self):
+            return
+        
+        if sd.longterm_data is None or messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht',parent=self):
+            self.master.create_new_database()
+            self.master.database_filename = self.temp_database_filename
+            self.destroy()
+
+
+
+
+
+class Application(tk.Frame):
+
+    def new_database_frame(self): 
+        self.new_database_frame = NewDatabaseFrame(self)
+
+
 
     def update_search(self):
         search_string = self.dataframe.search_field.get()
@@ -430,13 +454,20 @@ class Application(tk.Frame):
 
         if len(OpenFilename ) == 0:
             return
-        main_auftragkonto_load = sd.get_main_auftragskonto(OpenFilename)
+        try:
+            main_auftragkonto_load = sd.get_main_auftragskonto(OpenFilename)
+        except Exception as ex1:
+            messagebox.showerror('Fehler beim Importieren','Importieren ist mit Fehler '+repr(ex1) +' fehlgeschlagen')
 
         if main_auftragkonto_load !=self.main_auftragskonto and self.main_auftragskonto is not None:
             if not messagebox.askokcancel('Sicherheitsabfrage','Kontonummer des CSVs stimmen nicht mit bestehenden Daten überein. Trotzdem fortfahren?'):
                 return
+        try:    
+            info = sd.load_data(OpenFilename)
+        except Exception as ex1:
+            messagebox.showerror('Fehler beim Importieren','Importieren ist mit Fehler '+repr(ex1) +' fehlgeschlagen')
+
             
-        info = sd.load_data(OpenFilename)
         q1.put('Update Plot')
         messagebox.showinfo('Import Bericht','Eine csv Datei mit {Csv size} Einträgen wurde geladen. {#Duplicate} davon waren schon vorhanden und {#Imported} neue Einträge wurden importiert. Die Datenbank enthält nun {New size} Einträge'.format(**info))
 
