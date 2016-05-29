@@ -16,7 +16,7 @@ class SparkasseDataframe:
         self.chosen_subset = None
     def sanitize_data(self,data):
         data.drop_duplicates(inplace=True,subset=['Betrag','Buchungstag','Kontonummer','Verwendungszweck'])
-        data.sort_values(by='Buchungstag',ascending=True,inplace=True)
+        data.sort_values(by=['Buchungstag','Verwendungszweck'],ascending=[True,True],inplace=True)
         data['SumBetrag'] = data['Betrag'].cumsum()
         data.reset_index(drop=True,inplace=True)
         return data
@@ -39,6 +39,7 @@ class SparkasseDataframe:
             self.longterm_data = merged_data
         else:
             old_size = 0
+            data = self.sanitize_data(data)
             data['SumBetrag'] = data['Betrag'].cumsum()
             self.longterm_data = data
 
@@ -51,7 +52,9 @@ class SparkasseDataframe:
         return {'New size':new_size,'#Imported':n_import,'#Duplicate':n_duplicate,'Csv size':importfile_size}
 
     def adjust_to_value(self,value,date):
-        date = datetime.strptime(date,'%Y-%m-%d')
+        print(type(date))
+        if type(date) is not datetime and type(date) is not pd.tslib.Timestamp:
+            date = datetime.strptime(date,'%Y-%m-%d')
 
         for row in self.longterm_data.iterrows():
             if row[1]['Buchungstag']>date:
@@ -115,7 +118,9 @@ if __name__ == "__main__":
     sd.load_database('./databases/jannick_sparkasse.pkl')
 ##    sd.adjust_to_value(400,'2016-02-20')
 ##    sd.save_database('./databases/familienkonto_sparkasse',overwrite=True)
-    sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',marker='.',linewidth=2)
+    ax1 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',marker='.',linewidth=2)
     sd.find_subset('Betrag',-205)
+    sd.longterm_data['rolling_mean'] =  sd.longterm_data['SumBetrag'].rolling(center=False,window=60,min_periods=1).mean()
+    sd.longterm_data.plot(ax=ax1,x='Buchungstag',y='rolling_mean',color='g',linewidth=2)
 ##    sd.save_database('test_database')
 ##    sd.load_database('test_database.pkl')

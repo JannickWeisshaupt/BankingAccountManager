@@ -2,6 +2,7 @@ from tkinter import ttk
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
+
 import numpy as np
 import pandas as pd
 import os
@@ -65,7 +66,7 @@ class DataFrame(tk.Frame):
         width_value = 40
         self._after_id = None
 
-        self.header = ttk.Label(self,text='Vorgangsinformation',justify=tk.CENTER,font=("Helvetica", 20))
+        self.header = ttk.Label(self,text='Vorgangsinformation',justify=tk.CENTER,font=("Helvetica", 20),anchor=tk.CENTER)
         self.header.grid(row=0,column=0,columnspan=2,pady=10)
 
         self.begL = ttk.Label(self,text='Begünstigter/Zahlungspflichtiger:',justify=tk.LEFT,anchor=tk.W)
@@ -109,8 +110,8 @@ class DataFrame(tk.Frame):
         self.subframe1 = tk.Frame(self)
         self.subframe1.grid(row=9,column=0,columnspan=2,sticky='nwse')
 
-        self.header2 = ttk.Label(self.subframe1,text='Optionen',justify=tk.CENTER,font=("Helvetica", 20))
-        self.header2.grid(row=0,column=0,columnspan=2,pady=10)
+        self.header2 = ttk.Label(self.subframe1,text='Suche',width=30,anchor=tk.CENTER,justify=tk.CENTER,font=("Helvetica", 20))
+        self.header2.grid(row=0,column=0,columnspan=4,pady=10)
 
         searchL = ttk.Label(self.subframe1,text='Suchen:',justify=tk.LEFT,anchor=tk.W)
         searchL.grid(row=1,column=0,sticky='w',pady=10)
@@ -131,6 +132,7 @@ class DataFrame(tk.Frame):
 
         self.search_combo.bind("<<ComboboxSelected>>", handle_update_event)
 
+
         def return_press_handler(event):
             self.search_checkvar.set(True)
             master.update_search()
@@ -139,6 +141,7 @@ class DataFrame(tk.Frame):
             self.search_checkvar.set(False)
             master.update_search()
 
+        self.return_press_handler = lambda event: return_press_handler(event)
     
         self.search_field = ttk.Entry(self.subframe1)
         self.search_field.grid(row=1,column=2,padx=5)
@@ -253,19 +256,26 @@ class EmbeddedFigure:
             line_index = 0
             
 
+
         plot1 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,linewidth=3,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False, drawstyle='steps-post',alpha=plot_alpha)
         plot2 = sd.longterm_data.plot(x='Buchungstag',y='SumBetrag',grid=True,marker='o',linewidth=0,ax=self.subplot1,color=[255/255, 19/255, 0],legend=False,alpha=plot_alpha)
+
 
         if app.search_active_bool and len(sd.chosen_subset)>0:
             plot3 = sd.chosen_subset.plot(x='Buchungstag',y='SumBetrag',grid=True,marker='o',linewidth=0,ax=self.subplot1,color='g',legend=False,ms=10)
 
 
         lines =     self.subplot1.get_lines()
-
-        
-        
         xdata = lines[line_index].get_data()[0]
         ydata = lines[line_index].get_data()[1]
+
+        if app.show_mean_bool:
+            self.boxcar_data = pd.DataFrame()
+            self.boxcar_data['Buchungstag'] = sd.longterm_data['Buchungstag']
+            self.boxcar_data['rolling_mean'] = sd.longterm_data['rolling_mean'] =  sd.longterm_data['SumBetrag'].rolling(center=False,window=60,min_periods=1).mean()
+            plt4 = self.boxcar_data.plot(ax=self.subplot1,x='Buchungstag',y='rolling_mean',color='g',linewidth=4,alpha=0.5*plot_alpha,legend=False,grid=True)
+
+
 
 ##        xdata_conv = (xdata-dt.datetime(1,1,1)).total_seconds()/60/60/24
 
@@ -329,8 +339,9 @@ class NewDatabaseFrame(tk.Toplevel):
         self.geometry('{}x{}'.format(600, 300))
         self.wm_title("Neue Datenbank")
         self.resizable(width=False, height=False)
+        
         self.temp_database_filename = None
-
+        self.csv_loadname = None
         
         InformationFrame = tk.Frame(self)
         InformationFrame.grid(row = 0,column=0,sticky='ewns')
@@ -358,33 +369,72 @@ class NewDatabaseFrame(tk.Toplevel):
         KontostandL =tk.Label(InformationFrame,text="Aktueller Kontostand: ")
         KontostandL.grid(row = 1,column =0,sticky='w')
 
-        KontostandL_value = ttk.Entry(InformationFrame,width=10)
-        KontostandL_value.grid(row = 1,column =1,sticky='w')
+        self.KontostandL_value = ttk.Entry(InformationFrame,width=10)
+        self.KontostandL_value.grid(row = 1,column =1,sticky='w')
 
         KontostandL2 =tk.Label(InformationFrame,text="Bitte im Format 10.000,23 oder 10000,23 eingeben")
         KontostandL2.grid(row = 1,column =2,sticky='w',padx=5)        
+
+
+        csvL =tk.Label(InformationFrame,text="Erstes CSV: ")
+        csvL.grid(row = 2,column =0,sticky='w')
+    
+        csvL_value = tk.Label(InformationFrame,bg = 'white',relief='ridge',width=60)
+        csvL_value.grid(row = 2,column =1,sticky='w',columnspan=2)
+    
+        def ask_filename_csv(labelDir):
+            temp_filename = filedialog.askopenfilename(initialdir='./CSV',filetypes = [('CSV files', '.csv'), ('all files', '.*')],parent=self)
+            if len(temp_filename) == 0:
+                return
+            self.csv_loadname = temp_filename
+            labelDir.config(text= temp_filename)
+
+        csvButton = ttk.Button(InformationFrame,width=8, text='Name',command =lambda: ask_filename_csv(csvL_value),takefocus = False)
+        csvButton.grid(column=3,row=2,padx=5,pady=3)
+
         
         ButtonFrame = tk.Frame(self)
         ButtonFrame.grid(row = 1,column=0,columnspan =2,sticky='ewns')
 
 
-        OkBut=ttk.Button(ButtonFrame,text="Ok",command=self.ask_new_database)
+        OkBut=ttk.Button(ButtonFrame,text="OK",command=self.ask_new_database)
         OkBut.grid(row=0,column=0,ipady=5,pady=10)
 
         CancelBut =ttk.Button(ButtonFrame,text="Abbrechen",command=self.destroy)
         CancelBut.grid(row=0,column=1,ipady=5)
 
     def ask_new_database(self):
-        missing_string = None
+        try:
+            kontostand_string = self.KontostandL_value.get()
+            kontostand_string = kontostand_string.replace('.','')
+            kontostand_string = kontostand_string.replace(',','.')
+            aktueller_kontostand = float(kontostand_string)
+        except:
+            aktueller_kontostand = None
+        
+        missing_string = ''
         if self.temp_database_filename is None:
-            missing_string = 'Filename'
+            missing_string += 'Filename, '
+        if self.csv_loadname is None:
+            missing_string += 'Erstes Csv, '
+        if aktueller_kontostand is None:
+            missing_string += 'aktueller Kontostand '
             
-        if missing_string is not None and not messagebox.askokcancel('Unvollständige Anhaben','Sie haben nichts im Feld '+missing_string+ 'eingetragen. Trotzdem fortfahren?',parent=self):
+        if not missing_string == '' and not messagebox.askokcancel('Unvollständige Anhaben','Sie haben nichts im Feld '+missing_string+ 'eingetragen. Trotzdem fortfahren?',parent=self):
             return
         
         if sd.longterm_data is None or messagebox.askokcancel('Sicherheitsabfrage','Möchten Sie wirklich eine neue Database beginnen? Ungesicherte Daten werden unwiederbringlich gelöscht',parent=self):
             self.master.create_new_database()
+            if self.csv_loadname is not None:
+                sd.load_data(self.csv_loadname)
+            if aktueller_kontostand is not None:
+                datum = sd.longterm_data['Buchungstag'][0]-dt.timedelta(1)
+                korr_value = float(sd.longterm_data['SumBetrag'].tail(1)-sd.longterm_data['SumBetrag'][0]) 
+                sd.adjust_to_value(aktueller_kontostand-korr_value,datum)
+                
             self.master.database_filename = self.temp_database_filename
+            self.master.save_database()
+            q1.put('Update Plot')
             self.destroy()
 
 
@@ -399,6 +449,9 @@ class Application(tk.Frame):
 
 
     def update_search(self):
+        if sd.longterm_data is None:
+            return
+        
         search_string = self.dataframe.search_field.get()
         if self.dataframe.search_checkvar.get() and not search_string.isspace() and len(search_string)>0:
             column = self.dataframe.search_combo.value()
@@ -460,7 +513,7 @@ class Application(tk.Frame):
             messagebox.showerror('Fehler beim Importieren','Importieren ist mit Fehler '+repr(ex1) +' fehlgeschlagen')
 
         if main_auftragkonto_load !=self.main_auftragskonto and self.main_auftragskonto is not None:
-            if not messagebox.askokcancel('Sicherheitsabfrage','Kontonummer des CSVs stimmen nicht mit bestehenden Daten überein. Trotzdem fortfahren?'):
+            if not messagebox.askokcancel('Sicherheitsabfrage','Kontonummer des CSVs stimmt nicht mit bestehenden Daten überein. Trotzdem fortfahren?'):
                 return
         try:    
             info = sd.load_data(OpenFilename)
@@ -499,7 +552,7 @@ class Application(tk.Frame):
         self.filemenu.add_command(label="Save Database", command=self.save_database, accelerator="Strq+s")
         self.filemenu.add_command(label="Save Database as", command=self.save_database_as, accelerator="Strq+Shift+s")
         
-        self.filemenu.add_command(label="Add csv", command=self.import_csv)
+        self.filemenu.add_command(label="Add csv", command=self.import_csv, accelerator="Strq+g")
 
 
         self.filemenu.add_separator()
@@ -550,6 +603,7 @@ class Application(tk.Frame):
         self.search_active_bool = False
         self.chosen_data = None
         self.database_filename = None
+        self.show_mean_bool = True
         
         tk.Frame.__init__(self)
         self.pack()
@@ -570,6 +624,8 @@ class Application(tk.Frame):
         root.bind_all('<Control-q>',lambda event: self.quit_program() )      
         root.bind_all('<Control-l>',lambda event: self.load_database() )      
         root.bind_all('<Control-n>',lambda event: self.new_database_frame() )      
+        root.bind_all('<Control-f>',lambda event: self.dataframe.search_field.focus_set() or self.dataframe.return_press_handler(event) )    
+        root.bind_all('<Control-g>',lambda event: self.import_csv() )      
 
 
 root = tk.Tk()
