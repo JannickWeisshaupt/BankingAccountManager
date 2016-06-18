@@ -87,7 +87,7 @@ class SparkasseDataframe:
         if column == 'Buchungstag':
             value = datetime.strptime(value,'%Y-%m-%d')
         self.chosen_subset =  self.longterm_data.loc[self.longterm_data[column] == value]
-        self.chosen_subset.reset_index(drop=True,inplace=True)
+        self.chosen_subset.reset_index(drop=True, inplace=True)
 
 
     def export_daterange(self,datestart,dateend):
