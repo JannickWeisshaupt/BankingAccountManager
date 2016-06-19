@@ -11,6 +11,7 @@ import datetime as dt
 import ctypes
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+
 from matplotlib import gridspec
 import logging
 import queue
@@ -77,7 +78,7 @@ class DataFrame(tk.Frame):
 
         self.header = ttk.Label(self, text='Vorgangsinformation', justify=tk.CENTER, font=("Helvetica", 20),
                                 anchor=tk.CENTER)
-        self.header.grid(row=0, column=0, columnspan=2, pady=10)
+        self.header.grid(row=0, column=0, columnspan=2, pady=20)
 
         self.begL = ttk.Label(self, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W,width=35)
         self.begL.grid(row=1, column=0, pady=3, sticky='w')
@@ -121,7 +122,7 @@ class DataFrame(tk.Frame):
 
         self.header2 = ttk.Label(self.subframe1, text='Suche', width=30, anchor=tk.CENTER, justify=tk.CENTER,
                                  font=("Helvetica", 20))
-        self.header2.grid(row=0, column=0, columnspan=4, pady=10)
+        self.header2.grid(row=0, column=0, columnspan=4, pady=20)
 
         searchL = ttk.Label(self.subframe1, text='Suchen:', justify=tk.LEFT, anchor=tk.W)
         searchL.grid(row=1, column=0, sticky='w', pady=10)
@@ -177,6 +178,19 @@ class DataFrame(tk.Frame):
         self.totsumL.grid(row=1, column=0, pady=3, sticky='w')
         self.totsumL_value = CopyableLabel(self.subframe2, text='', justify=tk.LEFT, width=width_value)
         self.totsumL_value.grid(row=1, column=1, pady=3, sticky='w')
+
+        self.subframe3 = tk.Frame(self)
+        self.subframe3.grid(row=11, column=0, columnspan=2, sticky='nwse')
+        self.header3 = ttk.Label(self.subframe3, text='Konto Statistik', width=30, anchor=tk.CENTER, justify=tk.CENTER,
+                                 font=("Helvetica", 20))
+
+
+        self.header3.grid(row=0, column=0, columnspan=4, pady=20)
+
+        self.test = ttk.Label(self.subframe3, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W, width=35)
+        self.test.grid(row=1, column=0, pady=3, sticky='w')
+        self.test_value = CopyableLabel(self.subframe3, text='', justify=tk.LEFT, width=width_value)
+        self.test_value.grid(row=1, column=1, pady=3, sticky='w')
 
     def update(self):
 
@@ -556,9 +570,17 @@ class Application(tk.Frame):
         SaveFilename = filedialog.asksaveasfilename(initialdir='./databases')
         if SaveFilename[-4:] == '.pkl' or SaveFilename[-4:] == '.csv':
             SaveFilename = SaveFilename[:-4]
-
         if not len(SaveFilename) == 0:
             sd.save_database(SaveFilename, overwrite=True)
+
+    def export_selection(self, filetype=None):
+        save_filename = filedialog.asksaveasfilename(initialdir='./databases', filetypes=[('CSV Datenbank', '.csv'), ('PKL Datenbank', '.pkl')])
+
+        if save_filename == '':
+            return
+        else:
+            sd.export_selection(save_filename, filetype=filetype)
+
 
     def quit_program(self):
         root.destroy()
@@ -566,17 +588,21 @@ class Application(tk.Frame):
     def create_widgets(self):
         self.menubar = tk.Menu(self, tearoff=0)
         self.filemenu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="File", menu=self.filemenu)
 
+        self.menubar.add_cascade(label="File", menu=self.filemenu)
         self.filemenu.add_command(label="New Database", command=self.create_new_database_frame, accelerator="Strq+n")
         self.filemenu.add_command(label="Load Database", command=self.load_database, accelerator="Strq+l")
         self.filemenu.add_command(label="Save Database", command=self.save_database, accelerator="Strq+s")
         self.filemenu.add_command(label="Save Database as", command=self.save_database_as, accelerator="Strq+Shift+s")
-
         self.filemenu.add_command(label="Add csv", command=self.import_csv, accelerator="Strq+g")
-
         self.filemenu.add_separator()
         self.filemenu.add_command(label="Exit", command=self.quit_program, accelerator="Strq+q")
+
+        self.exportmenu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Export", menu=self.exportmenu)
+        self.exportmenu.add_command(label="Selection as csv", command=lambda: self.export_selection(filetype='csv'))
+        self.exportmenu.add_command(label="Selection as pkl", command=lambda: self.export_selection(filetype='pkl'))
+
 
         canvasFrame = tk.Frame(self, takefocus=False)
         canvasFrame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -630,7 +656,7 @@ class Application(tk.Frame):
         root.resizable(width=False, height=False)
         root.title('Control')
         root.after(300, self.update_status)
-        root.geometry('{}x{}'.format(1400, 900))
+        root.geometry('{}x{}'.format(1400, 850))
         self.create_widgets()
         root.config(menu=self.menubar)
         root.title('Konto Verwaltungssoftware')
