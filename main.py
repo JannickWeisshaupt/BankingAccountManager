@@ -43,6 +43,20 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 q1 = queue.Queue()
 
 
+class CopyableLabel(ttk.Entry):
+    def __init__(self, master, text='', **kw):
+        super().__init__(master, **kw)
+        self.insert(0, text)
+        self.configure(state="readonly")
+        # self.configure(inactiveselectbackground=self.cget("selectbackground"))
+
+    def set_text(self, text):
+        self.configure(state="NORMAL")
+        self.delete(0, tk.END)
+        self.insert(0, text)
+        self.configure(state="readonly")
+
+
 class NewCBox(ttk.Combobox):
     def __init__(self, master, dictionary, current=0, *args, **kw):
         ttk.Combobox.__init__(self, master, values=sorted(list(dictionary.keys())), state='readonly', *args, **kw)
@@ -58,48 +72,48 @@ class DataFrame(tk.Frame):
 
         super().__init__(master)
 
-        width_value = 40
+        width_value = 60
         self._after_id = None
 
         self.header = ttk.Label(self, text='Vorgangsinformation', justify=tk.CENTER, font=("Helvetica", 20),
                                 anchor=tk.CENTER)
         self.header.grid(row=0, column=0, columnspan=2, pady=10)
 
-        self.begL = ttk.Label(self, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W)
+        self.begL = ttk.Label(self, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W,width=35)
         self.begL.grid(row=1, column=0, pady=3, sticky='w')
-        self.begL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.begL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.begL_value.grid(row=1, column=1, pady=3, sticky='w')
 
         self.betragL = ttk.Label(self, text='Betrag:', justify=tk.LEFT, anchor=tk.W)
         self.betragL.grid(row=2, column=0, pady=3, sticky='w')
-        self.betragL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.betragL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.betragL_value.grid(row=2, column=1, pady=3, sticky='w')
 
         self.standL = ttk.Label(self, text='Kontostand:', justify=tk.LEFT, anchor=tk.W)
         self.standL.grid(row=3, column=0, pady=3, sticky='w')
-        self.standL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.standL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.standL_value.grid(row=3, column=1, pady=3, sticky='w')
 
         self.verwL = ttk.Label(self, text='Verwendungszweck:', justify=tk.LEFT, anchor=tk.W)
         self.verwL.grid(row=4, column=0, pady=3, sticky='w')
-        self.verwL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
-        self.verwL_value.grid(row=4, column=1, pady=3, sticky='w')
-        self.verwL2_value = ttk.Label(self, text='', justify=tk.LEFT, width=70, anchor=tk.W)
-        self.verwL2_value.grid(row=5, column=0, pady=3, columnspan=2, sticky='w')
+        self.verwL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
+        self.verwL_value.grid(row=4, column=1, pady=3, sticky='w', rowspan=2)
+        # self.verwL2_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
+        # self.verwL2_value.grid(row=5, column=1, pady=3, sticky='w')
 
         self.ktnrL = ttk.Label(self, text='Kontonummer:', justify=tk.LEFT, anchor=tk.W)
         self.ktnrL.grid(row=6, column=0, pady=3, sticky='w')
-        self.ktnrL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.ktnrL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.ktnrL_value.grid(row=6, column=1, pady=3, sticky='w')
 
         self.blzL = ttk.Label(self, text='BLZ:', justify=tk.LEFT, anchor=tk.W)
         self.blzL.grid(row=7, column=0, pady=3, sticky='w')
-        self.blzL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.blzL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.blzL_value.grid(row=7, column=1, pady=3, sticky='w')
 
         self.tagL = ttk.Label(self, text='Buchungstag:', justify=tk.LEFT, anchor=tk.W)
         self.tagL.grid(row=8, column=0, pady=3, sticky='w')
-        self.tagL_value = ttk.Label(self, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.tagL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.tagL_value.grid(row=8, column=1, pady=3, sticky='w')
 
         self.subframe1 = tk.Frame(self)
@@ -116,7 +130,7 @@ class DataFrame(tk.Frame):
                       'Verwendungszweck': 'Verwendungszweck', 'Datum': 'Buchungstag',
                       'Begünstigter/Zahlungspflichtiger': 'Beguenstigter/Zahlungspflichtiger'}
 
-        self.search_combo = NewCBox(self.subframe1, search_dic, width=30)
+        self.search_combo = NewCBox(self.subframe1, search_dic, width=30, takefocus=False)
         self.search_combo.grid(row=1, column=1, sticky='w', padx=5)
         self.search_combo.current(0)
 
@@ -139,7 +153,7 @@ class DataFrame(tk.Frame):
 
         self.return_press_handler = lambda event: return_press_handler(event)
 
-        self.search_field = ttk.Entry(self.subframe1)
+        self.search_field = ttk.Entry(self.subframe1, width=40)
         self.search_field.grid(row=1, column=2, padx=5)
         self.search_field.bind('<Key>', handle_update_event)
         self.search_field.bind('<Return>', return_press_handler)
@@ -154,14 +168,14 @@ class DataFrame(tk.Frame):
         self.subframe2 = tk.Frame(self)
         self.subframe2.grid(row=10, column=0, columnspan=2, sticky='nwse')
 
-        self.NfoundL = ttk.Label(self.subframe2, text='Gefundene Einträge:', justify=tk.LEFT, anchor=tk.W)
+        self.NfoundL = ttk.Label(self.subframe2, text='Gefundene Einträge:', justify=tk.LEFT, anchor=tk.W, width=35)
         self.NfoundL.grid(row=0, column=0, pady=3, sticky='w')
-        self.NfoundL_value = ttk.Label(self.subframe2, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.NfoundL_value = CopyableLabel(self.subframe2, text='', justify=tk.LEFT, width=width_value)
         self.NfoundL_value.grid(row=0, column=1, pady=3, sticky='w')
 
         self.totsumL = ttk.Label(self.subframe2, text='Gesamtsumme:', justify=tk.LEFT, anchor=tk.W)
         self.totsumL.grid(row=1, column=0, pady=3, sticky='w')
-        self.totsumL_value = ttk.Label(self.subframe2, text='', justify=tk.LEFT, width=width_value, anchor=tk.W)
+        self.totsumL_value = CopyableLabel(self.subframe2, text='', justify=tk.LEFT, width=width_value)
         self.totsumL_value.grid(row=1, column=1, pady=3, sticky='w')
 
     def update(self):
@@ -191,15 +205,15 @@ class DataFrame(tk.Frame):
         else:
             self.begL.config(text='Begünstigter:')
 
-        self.begL_value.config(text=beg)
-        self.betragL_value.config(text="{:1.2f}".format(betrag) + ' ' + waehrung)
-        self.standL_value.config(text="{:1.2f}".format(kontostand) + ' ' + 'EUR')
+        self.begL_value.set_text(beg)
+        self.betragL_value.set_text("{:1.2f}".format(betrag) + ' ' + waehrung)
+        self.standL_value.set_text("{:1.2f}".format(kontostand) + ' ' + 'EUR')
 
-        self.verwL_value.config(text=verwendungszweck[:35])
-        self.verwL2_value.config(text=verwendungszweck[35:])
-        self.ktnrL_value.config(text=kontonummer)
-        self.blzL_value.config(text=blz)
-        self.tagL_value.config(text=dt.datetime.date(buchungstag))
+        self.verwL_value.set_text(verwendungszweck)
+        # self.verwL2_value.config(text=verwendungszweck[35:])
+        self.ktnrL_value.set_text(kontonummer)
+        self.blzL_value.set_text(blz)
+        self.tagL_value.set_text(dt.datetime.date(buchungstag))
 
     def update_search(self):
 
@@ -207,11 +221,11 @@ class DataFrame(tk.Frame):
             chosen_subset = sd.chosen_subset
             gesamtsumme = chosen_subset['Betrag'].sum()
             Nfound = len(chosen_subset)
-            self.NfoundL_value.config(text=str(Nfound))
-            self.totsumL_value.config(text='{:1.2f}'.format(gesamtsumme))
+            self.NfoundL_value.set_text(Nfound)
+            self.totsumL_value.set_text('{:1.2f}'.format(gesamtsumme))
         else:
-            self.NfoundL_value.config(text='')
-            self.totsumL_value.config(text='')
+            self.NfoundL_value.set_text('')
+            self.totsumL_value.set_text('')
 
 
 class EmbeddedFigure:
@@ -616,7 +630,7 @@ class Application(tk.Frame):
         root.resizable(width=False, height=False)
         root.title('Control')
         root.after(300, self.update_status)
-        root.geometry('{}x{}'.format(1300, 900))
+        root.geometry('{}x{}'.format(1400, 900))
         self.create_widgets()
         root.config(menu=self.menubar)
         root.title('Konto Verwaltungssoftware')
