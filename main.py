@@ -8,6 +8,7 @@ import pandas as pd
 import os
 
 import datetime as dt
+import time
 import ctypes
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
@@ -69,6 +70,38 @@ class NewCBox(ttk.Combobox):
     def value(self):
         return self.dictionary[self.get()]
 
+
+class CustomText(tk.Text):
+    def __init__(self,master,*args,**kwargs):
+        super().__init__(master,*args,**kwargs)
+        self.tag_configure("keywords", foreground="orange")
+        self.tag_configure("string", foreground="green")
+
+    def highlight_pattern(self, pattern, tag, start="1.0", end="end",
+                          regexp=False):
+        '''Apply the given tag to all text that matches the given pattern
+
+        If 'regexp' is set to True, pattern will be treated as a regular
+        expression according to Tcl's regular expression syntax.
+        '''
+
+        start = self.index(start)
+        end = self.index(end)
+        self.mark_set("matchStart", start)
+        self.mark_set("matchEnd", start)
+        self.mark_set("searchLimit", end)
+
+        count = tk.IntVar()
+        while True:
+            index = self.search(pattern, "matchEnd","searchLimit",
+                                count=count, regexp=regexp)
+            if index == "": break
+            if count.get() == 0: break # degenerate pattern which matches zero-length strings
+            self.mark_set("matchStart", index)
+            self.mark_set("matchEnd", "%s+%sc" % (index, count.get()))
+            self.tag_add(tag, "matchStart", "matchEnd")
+
+
 class ReadOnlyText(tk.Text):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -84,19 +117,27 @@ class ReadOnlyText(tk.Text):
         self.delete(index1,index2)
         self.config(state=tk.DISABLED)
 
+    def clear(self):
+        self.config(state=tk.NORMAL)
+        self.delete("1.0",tk.END)
+        self.config(state=tk.DISABLED)
+
 class TerminalFrame(tk.Toplevel):
     def __init__(self, master, shared_vars):
         super().__init__(master)
-        self.geometry('{}x{}'.format(1000, 600))
+        self.geometry('{}x{}'.format(1300, 800))
 
+        self.shared_vars = shared_vars
         self.script_field_width = 30
         self.output_field_width = 30
         self.command_line_history = []
         self.current_history_pos = 0
         self.PyTerm = PythonTerminal(shared_vars)
 
+        start_code="import matplotlib.pyplot as plt\nimport numpy as np\nimport pandas as pd"
+        self.PyTerm.run_code(start_code)
         mini_command_line_frame = tk.Frame(self)
-        mini_command_line_frame.pack(side=tk.BOTTOM, anchor='w')
+        mini_command_line_frame.pack(side=tk.BOTTOM, anchor='w',fill='x')
         command_line_label = tk.Label(mini_command_line_frame,text='>>')
         command_line_label.pack(side=tk.LEFT, anchor='w', pady=5, padx=5)
         self.command_line = ttk.Entry(mini_command_line_frame, width= 70)
@@ -106,7 +147,7 @@ class TerminalFrame(tk.Toplevel):
         self.command_line.bind('<Down>',self.up_down_command_line)
 
 
-        self.script_field = tk.Text(self, height=30, width=self.script_field_width)
+        self.script_field = CustomText(self, height=30, width=self.script_field_width)
         self.script_field.pack(side=tk.LEFT, fill="both", expand=True)
         self.script_field_scollbar = ttk.Scrollbar(self)
         self.script_field_scollbar.config(command=self.script_field.yview)
@@ -114,20 +155,38 @@ class TerminalFrame(tk.Toplevel):
         self.script_field.config(yscrollcommand=self.script_field_scollbar.set)
         self.script_field.bind('<F5>', self.run_script_field)
 
+
         self.output_field = ReadOnlyText(self, height=30, width=self.output_field_width)
         self.output_field.pack(side=tk.LEFT, fill="both", expand=True)
         self.output_field_scollbar = ttk.Scrollbar(self)
         self.output_field_scollbar.config(command=self.output_field.yview)
         self.output_field_scollbar.pack(side=tk.LEFT, fill="y",padx=5)
         self.output_field.config(yscrollcommand=self.output_field_scollbar.set)
+        self.output_field.tag_configure("error",foreground='red')
+
+        self.clear_output_field_button = ttk.Button(mini_command_line_frame, text='Lösche Output', command=self.output_field.clear,takefocus=False)
+        self.clear_output_field_button.pack(side=tk.RIGHT, anchor='e', pady=5, padx=5)
+
+        self.print_welcome()
 
         self.menubar = tk.Menu(self, tearoff=0)
         self.filemenu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="File", menu=self.filemenu)
-        self.filemenu.add_command(label="New", command=lambda: self.script_field.delete('1.0', tk.END), accelerator="Strq+N")
-        self.filemenu.add_command(label="Save", command=self.save_script_to_file, accelerator="Strq+S")
-        self.filemenu.add_command(label="Load", command=self.load_script_from_file, accelerator="Strq+L")
+        self.filemenu.add_command(label="New", command=lambda: self.script_field.delete('1.0', tk.END), accelerator="Strq+shift+n")
+        self.filemenu.add_command(label="Load", command=self.load_script_from_file, accelerator="Strq+shift+l")
+        self.filemenu.add_command(label="Save", command=self.save_script_to_file, accelerator="Strq+shift+s")
         self.config(menu=self.menubar)
+        self.bind_all('<Control-L>', lambda event: self.load_script_from_file())
+        self.bind_all('<Control-S>', lambda event: self.save_script_to_file())
+        self.bind_all('<Control-N>', lambda event: self.script_field.delete('1.0', tk.END))
+
+        self.after(100,self.update)
+
+    def update(self):
+        self.after(50,self.update)
+        self.script_field.highlight_pattern('return|for|def|if|else|elif|while|class|True|False|import','keywords',regexp=True)
+        self.script_field.highlight_pattern(r'"(.*?)"','string',regexp=True)
+        self.script_field.highlight_pattern(r"'(.*?)'", 'string', regexp=True)
 
     def run_command_line(self,event):
         code = self.command_line.get()
@@ -136,20 +195,38 @@ class TerminalFrame(tk.Toplevel):
         result = self.PyTerm.run_code(code)
 
         self.command_line.delete(0, tk.END)
-        self.output_field.new_insert(tk.END,result[0])
-        self.output_field.new_insert(tk.END, result[1])
+        self.print_output(result)
 
     def run_script_field(self,event):
         code = self.script_field.get("1.0",tk.END)
+        stime = time.time()
         result = self.PyTerm.run_code(code)
+        etime = time.time()
+        self.print_output(result,run_time=etime-stime)
+
+    def print_output(self,result,run_time=None):
+        if run_time:
+            self.output_field.new_insert(tk.END, '\n--- Code was run in {:1.4f} s ---\n'.format(run_time))
         self.output_field.new_insert(tk.END,result[0])
-        self.output_field.new_insert(tk.END, result[1])
+        if result[1]:
+            st_index = self.output_field.index(tk.END)
+            st_index = "{:1.1f}".format(float(st_index) - 1)
+            self.output_field.new_insert(tk.END, result[1])
+            end_index = self.output_field.index(tk.END)
+            end_index = "{:1.1f}".format(float(end_index)-1)
+            self.output_field.mark_set("errorStart", st_index)
+            self.output_field.mark_set("errorEnd", end_index)
+            self.output_field.tag_add('error', "errorStart", "errorEnd")
+            self.output_field.tag_add('error', "errorStart", "errorEnd")
+
         self.output_field.see(tk.END)
+
 
     def save_script_to_file(self):
         save_filename = filedialog.asksaveasfilename(initialdir='./scripts',
                                                          filetypes=[('Python', '.py'), ('all files', '.*')],
                                                          parent=self)
+
         code = self.script_field.get("1.0", tk.END)
         if '.' not in save_filename:
             save_filename += '.py'
@@ -160,12 +237,54 @@ class TerminalFrame(tk.Toplevel):
         load_filename = filedialog.askopenfilename(initialdir='./scripts',
                                                      filetypes=[('Python', '.py'), ('all files', '.*')],
                                                      parent=self)
+        if not load_filename:
+            return
         if '.' not in load_filename:
             load_filename += '.py'
-        with open(load_filename, 'w') as f:
-            code = f.read()
-        self.script_field.delete('1.0', tk.END)
-        self.script_field.insert(0,code)
+
+        try:
+            with open(load_filename, 'r') as f:
+                code = f.read()
+            self.script_field.delete('1.0', tk.END)
+            self.script_field.insert('1.0', code)
+        except Exception as ex1:
+            messagebox.showerror('Fehler beim Laden','Laden ist mit Fehler ' + repr(ex1) + ' fehlgeschlagen',parent=self)
+
+    def print_welcome(self):
+        message_start = """Willkommen zum interaktiven Terminal
+Sie koennen mit der Skriptsprache Python selbst ihr Konto analysieren
+Folgende Variablen sind schon fuer Sie vorhanden:
+
+np:             Numerische Bibliothek numpy
+plt:            Graphische Bibliothek matplotlib
+pd:             Tabellen-Bibliothek pandas"""
+
+        if self.shared_vars:
+            message_mid = """
+Konto:          Ihr Konto als pandas Tabelle mit vollstaendigen Daten
+Betrag:         Alle einzelnen Vorgaenge als numpy array
+Kontostand:     Kontostand als numpy array
+Buchungstag:    Der Buchungstag der Vorgaenge"""
+        else:
+            message_mid = """
+Kontodaten waren nicht vorhanden und konnten nicht geladen werden.
+Falls Sie diese benoetigen laden Sie bitte ihre Kontodaten ein und starten das Terminal neu
+"""
+
+        message_end = """
+Beispiel:
+plt.figure(figsize=(16,10)) # Erzeugt plot des Kontostandes
+plt.plot(Buchungstag,Kontostand)
+plt.show()
+
+print(Kontostand.mean()) # Zeigt den mittleren Kontostand an
+
+print(Konto.ix[0]) # Zeigt die erste Buchung des Kontos an
+
+-------------------- Python --------------------
+
+"""
+        self.output_field.new_insert('1.0',message_start+message_mid+message_end)
 
     def up_down_command_line(self,event):
         if len(self.command_line_history) == 0:
@@ -700,10 +819,12 @@ class Application(tk.Frame):
             sd.export_selection(save_filename, filetype=filetype)
 
     def open_terminal_frame(self):
-        if sd.longterm_data is None:
-            return
-        shared_vars = {'Konto': sd.longterm_data, 'Betrag':sd.longterm_data['Betrag'],
-                       'Kontostand':sd.longterm_data['SumBetrag'], 'Buchungstag':sd.longterm_data}
+        if sd.longterm_data is not None:
+            shared_vars = {'Konto': sd.longterm_data, 'Betrag':sd.longterm_data['Betrag'],
+                       'Kontostand':sd.longterm_data['SumBetrag'], 'Buchungstag':sd.longterm_data['Buchungstag']}
+        else:
+            shared_vars = None
+
         self.terminal_frame = TerminalFrame(root, shared_vars)
 
     def quit_program(self):
