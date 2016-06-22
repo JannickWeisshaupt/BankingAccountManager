@@ -294,6 +294,7 @@ class EmbeddedFigure:
             plot3 = sd.chosen_subset.plot(x='Buchungstag', y='SumBetrag', grid=True, marker='o', linewidth=0,
                                           ax=self.subplot1, color='g', legend=False, ms=10)
 
+
         lines = self.subplot1.get_lines()
         xdata = lines[line_index].get_data()[0]
         ydata = lines[line_index].get_data()[1]
@@ -317,6 +318,10 @@ class EmbeddedFigure:
         if not self.first_plot_bool:
             self.subplot1.set_xlim(*xlim)
             self.subplot1.set_ylim(*ylim)
+        else:
+            xlim = self.subplot1.get_xlim()
+            xlim_diff = xlim[1] - xlim[0]
+            self.subplot1.set_xlim(xlim[0]-xlim_diff/40,xlim[1]+xlim_diff/40)
 
         self.f.tight_layout()
         plt.pause(0.001)
