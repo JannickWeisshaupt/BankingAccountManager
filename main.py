@@ -17,11 +17,13 @@ import logging
 import queue
 
 from SparkasseDataframe import SparkasseDataframe
+from TerminalClass import PythonTerminal
 
 font = dict(family='serif', size=18)
 plt.rc('font', **font)
 
 sd = SparkasseDataframe()
+
 
 if not os.path.exists('./logfiles'):
     os.makedirs('./logfiles')
@@ -66,6 +68,117 @@ class NewCBox(ttk.Combobox):
 
     def value(self):
         return self.dictionary[self.get()]
+
+class ReadOnlyText(tk.Text):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.config(state=tk.DISABLED)
+
+    def new_insert(self,index,string):
+        self.config(state=tk.NORMAL)
+        self.insert(index,string)
+        self.config(state=tk.DISABLED)
+
+    def new_delete(self,index1,index2):
+        self.config(state=tk.NORMAL)
+        self.delete(index1,index2)
+        self.config(state=tk.DISABLED)
+
+class TerminalFrame(tk.Toplevel):
+    def __init__(self, master, shared_vars):
+        super().__init__(master)
+        self.geometry('{}x{}'.format(1000, 600))
+
+        self.script_field_width = 30
+        self.output_field_width = 30
+        self.command_line_history = []
+        self.current_history_pos = 0
+        self.PyTerm = PythonTerminal(shared_vars)
+
+        mini_command_line_frame = tk.Frame(self)
+        mini_command_line_frame.pack(side=tk.BOTTOM, anchor='w')
+        command_line_label = tk.Label(mini_command_line_frame,text='>>')
+        command_line_label.pack(side=tk.LEFT, anchor='w', pady=5, padx=5)
+        self.command_line = ttk.Entry(mini_command_line_frame, width= 70)
+        self.command_line.pack(side=tk.LEFT,anchor= 'w', pady=5,padx=5)
+        self.command_line.bind('<Return>',self.run_command_line)
+        self.command_line.bind('<Up>',self.up_down_command_line)
+        self.command_line.bind('<Down>',self.up_down_command_line)
+
+
+        self.script_field = tk.Text(self, height=30, width=self.script_field_width)
+        self.script_field.pack(side=tk.LEFT, fill="both", expand=True)
+        self.script_field_scollbar = ttk.Scrollbar(self)
+        self.script_field_scollbar.config(command=self.script_field.yview)
+        self.script_field_scollbar.pack(side=tk.LEFT, fill="y",padx=5)
+        self.script_field.config(yscrollcommand=self.script_field_scollbar.set)
+        self.script_field.bind('<F5>', self.run_script_field)
+
+        self.output_field = ReadOnlyText(self, height=30, width=self.output_field_width)
+        self.output_field.pack(side=tk.LEFT, fill="both", expand=True)
+        self.output_field_scollbar = ttk.Scrollbar(self)
+        self.output_field_scollbar.config(command=self.output_field.yview)
+        self.output_field_scollbar.pack(side=tk.LEFT, fill="y",padx=5)
+        self.output_field.config(yscrollcommand=self.output_field_scollbar.set)
+
+        self.menubar = tk.Menu(self, tearoff=0)
+        self.filemenu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="File", menu=self.filemenu)
+        self.filemenu.add_command(label="New", command=lambda: self.script_field.delete('1.0', tk.END), accelerator="Strq+N")
+        self.filemenu.add_command(label="Save", command=self.save_script_to_file, accelerator="Strq+S")
+        self.filemenu.add_command(label="Load", command=self.load_script_from_file, accelerator="Strq+L")
+        self.config(menu=self.menubar)
+
+    def run_command_line(self,event):
+        code = self.command_line.get()
+        self.command_line_history.append(code)
+        self.current_history_pos = 0
+        result = self.PyTerm.run_code(code)
+
+        self.command_line.delete(0, tk.END)
+        self.output_field.new_insert(tk.END,result[0])
+        self.output_field.new_insert(tk.END, result[1])
+
+    def run_script_field(self,event):
+        code = self.script_field.get("1.0",tk.END)
+        result = self.PyTerm.run_code(code)
+        self.output_field.new_insert(tk.END,result[0])
+        self.output_field.new_insert(tk.END, result[1])
+        self.output_field.see(tk.END)
+
+    def save_script_to_file(self):
+        save_filename = filedialog.asksaveasfilename(initialdir='./scripts',
+                                                         filetypes=[('Python', '.py'), ('all files', '.*')],
+                                                         parent=self)
+        code = self.script_field.get("1.0", tk.END)
+        if '.' not in save_filename:
+            save_filename += '.py'
+        with open(save_filename,'w') as f:
+            f.write(code)
+
+    def load_script_from_file(self):
+        load_filename = filedialog.askopenfilename(initialdir='./scripts',
+                                                     filetypes=[('Python', '.py'), ('all files', '.*')],
+                                                     parent=self)
+        if '.' not in load_filename:
+            load_filename += '.py'
+        with open(load_filename, 'w') as f:
+            code = f.read()
+        self.script_field.delete('1.0', tk.END)
+        self.script_field.insert(0,code)
+
+    def up_down_command_line(self,event):
+        if len(self.command_line_history) == 0:
+            return
+        if event.keysym == 'Up' and abs(self.current_history_pos-1) <= len(self.command_line_history):
+            self.current_history_pos += -1
+        elif event.keysym == 'Down' and self.current_history_pos < 0:
+            self.current_history_pos += 1
+
+        self.command_line.delete(0,tk.END)
+        if self.current_history_pos != 0:
+            self.command_line.insert(0, self.command_line_history[self.current_history_pos])
+
 
 
 class DataFrame(tk.Frame):
@@ -581,6 +694,12 @@ class Application(tk.Frame):
         else:
             sd.export_selection(save_filename, filetype=filetype)
 
+    def open_terminal_frame(self):
+        if sd.longterm_data is None:
+            return
+        shared_vars = {'Konto': sd.longterm_data, 'Betrag':sd.longterm_data['Betrag'],
+                       'Kontostand':sd.longterm_data['SumBetrag'], 'Buchungstag':sd.longterm_data}
+        self.terminal_frame = TerminalFrame(root, shared_vars)
 
     def quit_program(self):
         root.destroy()
@@ -603,6 +722,9 @@ class Application(tk.Frame):
         self.exportmenu.add_command(label="Selection as csv", command=lambda: self.export_selection(filetype='csv'))
         self.exportmenu.add_command(label="Selection as pkl", command=lambda: self.export_selection(filetype='pkl'))
 
+        self.terminalmenu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Terminal", menu=self.terminalmenu)
+        self.terminalmenu.add_command(label="Starte Terminal", command=self.open_terminal_frame, accelerator="Strq+t")
 
         canvasFrame = tk.Frame(self, takefocus=False)
         canvasFrame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -673,7 +795,7 @@ class Application(tk.Frame):
                       lambda event: self.dataframe.search_field.focus_set() or self.dataframe.return_press_handler(
                           event))
         root.bind_all('<Control-g>', lambda event: self.import_csv())
-
+        root.bind_all('<Control-t>', lambda event: self.open_terminal_frame())
 
 root = tk.Tk()
 app = Application()
