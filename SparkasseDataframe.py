@@ -16,6 +16,7 @@ class SparkasseDataframe:
     def __init__(self):
         self.longterm_data = None
         self.chosen_subset = None
+        self.labels = None
 
     def sanitize_data(self, data_in,inplace=True):
         if inplace:
@@ -23,7 +24,10 @@ class SparkasseDataframe:
         else:
             data = data_in.copy(deep=True)
 
-        data.drop_duplicates(inplace=True, subset=['Betrag', 'Buchungstag', 'Kontonummer', 'Verwendungszweck'])
+        if 'Label' not in data.columns:
+            data['Label'] = 'Unbekannt'
+
+        data.drop_duplicates(inplace=True, subset=['Betrag', 'Buchungstag', 'Kontonummer'])
         data.sort_values(by=['Buchungstag', 'Verwendungszweck'], ascending=[True, True], inplace=True)
         data['SumBetrag'] = data['Betrag'].cumsum()
         data.reset_index(drop=True, inplace=True)
@@ -86,6 +90,7 @@ class SparkasseDataframe:
             raise Exception('database already in memory')
         self.longterm_data = pd.read_pickle(filename)
         self.sanitize_data(self.longterm_data)
+        self.labels = set(self.longterm_data['Label'])
 
     def statistical_analysis(self):
         summe = self.longterm_data['SumBetrag']
@@ -142,10 +147,10 @@ if __name__ == "__main__":
     sd.load_database('./databases/jannick_sparkasse.pkl')
     ##    sd.adjust_to_value(400,'2016-02-20')
     ##    sd.save_database('./databases/familienkonto_sparkasse',overwrite=True)
-    ax1 = sd.longterm_data.plot(x='Buchungstag', y='SumBetrag', marker='.', linewidth=2)
-    sd.find_subset('Betrag', -205)
-    sd.longterm_data['rolling_mean'] = sd.longterm_data['SumBetrag'].rolling(center=False, window=60,
-                                                                             min_periods=1).mean()
-    sd.longterm_data.plot(ax=ax1, x='Buchungstag', y='rolling_mean', color='g', linewidth=2)
-##    sd.save_database('test_database')
-##    sd.load_database('test_database.pkl')
+    # ax1 = sd.longterm_data.plot(x='Buchungstag', y='SumBetrag', marker='.', linewidth=2)
+    # sd.find_subset('Betrag', -205)
+    # sd.longterm_data['rolling_mean'] = sd.longterm_data['SumBetrag'].rolling(center=False, window=60,
+    #                                                                          min_periods=1).mean()
+    # sd.longterm_data.plot(ax=ax1, x='Buchungstag', y='rolling_mean', color='g', linewidth=2)
+    ##    sd.save_database('test_database')
+    ##    sd.load_database('test_database.pkl')

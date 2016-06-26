@@ -205,7 +205,7 @@ class TerminalFrame(tk.Toplevel):
         self.print_output(result,run_time=etime-stime)
 
     def print_output(self,result,run_time=None):
-        if run_time:
+        if run_time is not None:
             self.output_field.new_insert(tk.END, '\n--- Code was run in {:1.4f} s ---\n'.format(run_time))
         self.output_field.new_insert(tk.END,result[0])
         if result[1]:
