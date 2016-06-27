@@ -183,7 +183,7 @@ class TerminalFrame(tk.Toplevel):
         self.after(100,self.update)
 
     def update(self):
-        self.after(50,self.update)
+        self.after(100, self.update)
         self.script_field.highlight_pattern('return|for|def|if|else|elif|while|class|True|False|import','keywords',regexp=True)
         self.script_field.highlight_pattern(r'"(.*?)"','string',regexp=True)
         self.script_field.highlight_pattern(r"'(.*?)'", 'string', regexp=True)
@@ -205,7 +205,7 @@ class TerminalFrame(tk.Toplevel):
         self.print_output(result,run_time=etime-stime)
 
     def print_output(self,result,run_time=None):
-        if run_time:
+        if run_time is not None:
             self.output_field.new_insert(tk.END, '\n--- Code was run in {:1.4f} s ---\n'.format(run_time))
         self.output_field.new_insert(tk.END,result[0])
         if result[1]:
@@ -262,9 +262,10 @@ pd:             Tabellen-Bibliothek pandas"""
         if self.shared_vars:
             message_mid = """
 Konto:          Ihr Konto als pandas Tabelle mit vollstaendigen Daten
-Betrag:         Alle einzelnen Vorgaenge als numpy array
-Kontostand:     Kontostand als numpy array
-Buchungstag:    Der Buchungstag der Vorgaenge"""
+Betrag:         Alle einzelnen Vorgaenge
+Kontostand:     Kontostand
+Buchungstag:    Der Buchungstag der Vorgaenge
+Suchergebnisse: Das Ergebnis der Suche  as Pandas Tabelle"""
         else:
             message_mid = """
 Kontodaten waren nicht vorhanden und konnten nicht geladen werden.
@@ -272,6 +273,7 @@ Falls Sie diese benoetigen laden Sie bitte ihre Kontodaten ein und starten das T
 """
 
         message_end = """
+
 Beispiel:
 plt.figure(figsize=(16,10)) # Erzeugt plot des Kontostandes
 plt.plot(Buchungstag,Kontostand)
@@ -476,7 +478,6 @@ class DataFrame(tk.Frame):
 
 class EmbeddedFigure:
     def __init__(self):
-        plt.ion()
         self.f = plt.Figure(figsize=(10, 10))
         gs = gridspec.GridSpec(1, 1, height_ratios=[1])
         self.subplot1 = self.f.add_subplot(gs[0])
@@ -597,8 +598,58 @@ class EmbeddedFigure:
         self.toolbar._positions.clear()
         self.first_plot_bool = True
 
-
 EF1 = EmbeddedFigure()
+
+class StatFigureFrame(tk.Toplevel):
+    def __init__(self,master,*args,**kwargs):
+        super().__init__(master,*args,**kwargs)
+        self.f = plt.Figure(figsize=(20, 12))
+        gs = gridspec.GridSpec(2, 3, height_ratios=[1,1])
+        self.subplot1 = self.f.add_subplot(gs[0])
+        self.subplot2 = self.f.add_subplot(gs[1])
+        self.f.patch.set_facecolor([240 / 255, 240 / 255, 237 / 255])
+        self.canvas = FigureCanvasTkAgg(self.f, self)
+        self.canvas.show()
+        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+        self.toolbar = NavigationToolbar2TkAgg(self.canvas, self)
+        self.toolbar.update()
+        self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    def create_plots(self,account_data):
+        def convert_to_days(date):
+            return date.day
+
+        account_data['Monatstag'] = account_data['Buchungstag'].apply(convert_to_days)
+        days = np.array(range(1, 32))
+        binned_res = np.zeros(31)
+        n_entries = np.zeros(31) + 1e-12
+
+        total_time_days = (account_data['Buchungstag'].iloc[-1] - account_data['Buchungstag'].iloc[0] ).days
+        total_time_months = total_time_days/30
+
+        for index, row in account_data.iterrows():
+            if row['Verwendungszweck'] != 'Konto Korrektur':
+                day = row['Monatstag']
+                binned_res[day - 1] += row['Betrag']
+                n_entries[day - 1] += 1
+
+        self.subplot1.plot(days, 0*days+ (binned_res / total_time_months).sum(),'r--',alpha=0.5,linewidth=2)
+        self.subplot1.bar(days, binned_res/total_time_months, color=[0.6,0.6,0.6], align='center')
+        self.subplot1.set_title('Ausgaben pro Monat')
+        self.subplot1.set_xlabel('Tag im Monat')
+        self.subplot1.set_ylabel('Betrag [Euro]')
+        self.subplot1.set_xlim(0,31.5)
+
+
+        self.subplot2.bar(days, binned_res / n_entries, color=[0.6,0.6,0.6], align='center')
+        self.subplot2.set_title('Mittlerer Betrag')
+        self.subplot2.set_xlim(0,31.5)
+        self.subplot2.set_xlabel('Tag im Monat')
+        self.subplot2.set_ylabel('Mittlerer Betrag [Euro]')
+
+        self.f.tight_layout()
+        plt.pause(0.001)
+        self.canvas.draw()
 
 
 class NewDatabaseFrame(tk.Toplevel):
@@ -825,7 +876,14 @@ class Application(tk.Frame):
         else:
             shared_vars = None
 
+        if sd.chosen_subset is not None:
+            shared_vars['Suchergebnisse'] = sd.chosen_subset
+
         self.terminal_frame = TerminalFrame(root, shared_vars)
+
+    def open_stat_frame(self):
+        stat_frame = StatFigureFrame(self)
+        stat_frame.create_plots(sd.longterm_data)
 
     def quit_program(self):
         root.destroy()
@@ -851,6 +909,10 @@ class Application(tk.Frame):
         self.terminalmenu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="Terminal", menu=self.terminalmenu)
         self.terminalmenu.add_command(label="Starte Terminal", command=self.open_terminal_frame, accelerator="Strq+t")
+
+        self.statmenu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Statistik", menu=self.statmenu)
+        self.statmenu.add_command(label="Statistische Übersicht", command=self.open_stat_frame)
 
         canvasFrame = tk.Frame(self, takefocus=False)
         canvasFrame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
