@@ -19,6 +19,7 @@ class PythonTerminal(code.InteractiveConsole):
 
 
     def __init__(self, shared_vars):
+        self.shared_vars = shared_vars
         super().__init__(shared_vars)
         self.out_history = []
 
@@ -30,6 +31,8 @@ class PythonTerminal(code.InteractiveConsole):
         self.out_history.append(out)
         return out
 
+    def restart_interpreter(self):
+        self.__init__(self.shared_vars)
 
 if __name__ == '__main__':
     import numpy as np
