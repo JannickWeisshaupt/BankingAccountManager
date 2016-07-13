@@ -123,7 +123,8 @@ class DataFrame(tk.Frame):
         self.button_frame = tk.Frame(self)
         self.button_frame.grid(row=9, column=0, columnspan=2, sticky='nwse')
 
-        
+        self.delete_selected_button = ttk.Button(self.button_frame, text='Lösche Eintrag', command=self.drop_selected,takefocus=False)
+        self.delete_selected_button.pack(side=tk.LEFT, anchor='e', pady=5, padx=5)
 
         # Here begins the search part
 
@@ -251,6 +252,22 @@ class DataFrame(tk.Frame):
             self.NfoundL_value.set_text('')
             self.totsumL_value.set_text('')
 
+    def drop_selected(self):
+        if not messagebox.askokcancel('Nachfrage','Moechten Sie diesen Eintrag wirklich loeschen',parent=self):
+            return
+        if app.search_active_bool:
+            chosen_subset = sd.chosen_subset
+            betrag = chosen_subset.at[app.chosen_data, 'Betrag']
+            buchungstag = chosen_subset.at[app.chosen_data, 'Buchungstag']
+            kontonummer = chosen_subset.at[app.chosen_data, 'Kontonummer']
+            info = {'Kontonummer':kontonummer, 'Buchungstag':buchungstag, 'Betrag':betrag}
+            app.chosen_data = int(sd.find_entry(info)[0])
+        if app.chosen_data is None:
+            return
+
+        sd.drop_entry(app.chosen_data)
+        app.update_search()
+        q1.put('Update Plot')
 
 class EmbeddedFigure:
     def __init__(self):

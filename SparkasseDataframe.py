@@ -135,6 +135,14 @@ class SparkasseDataframe:
             subset_for_export.to_pickle(filename+'.pkl')
 
 
+    def drop_entry(self,index):
+        self.longterm_data.drop(index,inplace=True)
+        self.sanitize_data(self.longterm_data)
+
+
+    def find_entry(self,info):
+        return self.longterm_data.ix[(self.longterm_data['Betrag'] == info['Betrag']) &
+                                   (self.longterm_data['Buchungstag'] == info['Buchungstag']) & (self.longterm_data['Kontonummer'] == info['Kontonummer'])].index
 
 if __name__ == "__main__":
     sd = SparkasseDataframe()
