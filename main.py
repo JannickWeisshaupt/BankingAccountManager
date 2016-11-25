@@ -20,6 +20,8 @@ import queue
 from SparkasseDataframe import SparkasseDataframe
 from terminal_frame import TerminalFrame
 
+import matplotlib.style
+matplotlib.style.use('classic')
 font = dict(family='serif', size=18)
 plt.rc('font', **font)
 
@@ -191,7 +193,7 @@ class DataFrame(tk.Frame):
         self.totsumL_value.grid(row=1, column=1, pady=3, sticky='w')
 
         self.subframe3 = tk.Frame(self)
-        self.subframe3.grid(row=11, column=0, columnspan=2, sticky='nwse')
+        self.subframe3.grid(row=12, column=0, columnspan=2, sticky='nwse')
         self.header3 = ttk.Label(self.subframe3, text='Konto Statistik', width=30, anchor=tk.CENTER, justify=tk.CENTER,
                                  font=("Helvetica", 20))
 

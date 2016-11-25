@@ -2,6 +2,7 @@ import code
 import contextlib
 import sys
 from io import StringIO
+import copy
 
 @contextlib.contextmanager
 def capture():
@@ -15,24 +16,27 @@ def capture():
         out[0] = out[0].getvalue()
         out[1] = out[1].getvalue()
 
+
 class PythonTerminal(code.InteractiveConsole):
 
-
     def __init__(self, shared_vars):
+        self.shared_vars_start = copy.deepcopy(shared_vars)
         self.shared_vars = shared_vars
         super().__init__(shared_vars)
         self.out_history = []
 
     def run_code(self,code_string):
         with capture() as out:
-            for line in code_string.split('\n'):
-                self.push(line)
+            # for line in code_string.split('\n'):
+            #     self.push(line)
+            self.runcode(code_string)
 
         self.out_history.append(out)
         return out
 
     def restart_interpreter(self):
-        self.__init__(self.shared_vars)
+        self.__init__(self.shared_vars_start)
+
 
 if __name__ == '__main__':
     import numpy as np
