@@ -6,6 +6,11 @@ from tkinter import filedialog
 import numpy as np
 import pandas as pd
 import os
+import sys
+
+import matplotlib as mpl
+
+mpl.use('Tkagg')
 
 import datetime as dt
 import time
@@ -49,6 +54,23 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 q1 = queue.Queue()
 
 
+class LabelWithEntry(tk.Frame):
+    def __init__(self, master, text, width_label=10, width_entry=20, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.label = ttk.Label(self, text=text, width=width_label)
+        self.label.grid(row=0, column=0)
+
+        self.entry = ttk.Entry(self, width=width_entry)
+        self.entry.grid(row=0, column=1)
+
+    def get(self):
+        return self.entry.get()
+
+    def set(self, value, fmt="{0:6.4f}"):
+        self.entry.delete(0, 'end')
+        self.entry.insert(0, fmt.format(value))
+
+
 class CopyableLabel(ttk.Entry):
     def __init__(self, master, text='', **kw):
         super().__init__(master, **kw)
@@ -65,18 +87,24 @@ class CopyableLabel(ttk.Entry):
 
 class NewCBox(ttk.Combobox):
     def __init__(self, master, dictionary, current=0, *args, **kw):
-        ttk.Combobox.__init__(self, master, values=sorted(list(dictionary.keys())), state='readonly', *args, **kw)
+        super().__init__(master, values=sorted(list(dictionary.keys())), state='readonly', *args, **kw)
         self.dictionary = dictionary
         self.set(current)
 
     def value(self):
         return self.dictionary[self.get()]
 
+    def set_values(self, dictionary):
+        self.dictionary = dictionary
+        self['values'] = list(dictionary.keys())
+
+
 
 class DataFrame(tk.Frame):
-    def __init__(self, master):
-
-        super().__init__(master)
+    def __init__(self, master, app, *arg, **kwargs):
+        self.master = master
+        self.app = app
+        super().__init__(master, *arg, **kwargs)
 
         width_value = 60
         self._after_id = None
@@ -122,15 +150,15 @@ class DataFrame(tk.Frame):
         self.tagL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.tagL_value.grid(row=8, column=1, pady=3, sticky='w')
 
-        self.button_frame = tk.Frame(self)
+        self.button_frame = ttk.Frame(self)
         self.button_frame.grid(row=9, column=0, columnspan=2, sticky='nwse')
 
-        self.delete_selected_button = ttk.Button(self.button_frame, text='Lösche Eintrag', command=self.drop_selected,takefocus=False)
-        self.delete_selected_button.pack(side=tk.LEFT, anchor='e', pady=5, padx=5)
+        # self.delete_selected_button = ttk.Button(self.button_frame, text='Lösche Eintrag', command=self.drop_selected,takefocus=False)
+        # self.delete_selected_button.pack(side=tk.LEFT, anchor='e', pady=5, padx=5)
 
         # Here begins the search part
 
-        self.subframe1 = tk.Frame(self)
+        self.subframe1 = ttk.Frame(self)
         self.subframe1.grid(row=10, column=0, columnspan=2, sticky='nwse')
 
         self.header2 = ttk.Label(self.subframe1, text='Suche', width=30, anchor=tk.CENTER, justify=tk.CENTER,
@@ -153,17 +181,17 @@ class DataFrame(tk.Frame):
             if self._after_id is not None:
                 master.after_cancel(self._after_id)
             # create a new job
-            self._after_id = master.after(100, master.update_search)
+            self._after_id = master.after(100, self.app.update_search)
 
         self.search_combo.bind("<<ComboboxSelected>>", handle_update_event)
 
         def return_press_handler(event):
             self.search_checkvar.set(True)
-            master.update_search()
+            self.app.update_search()
 
         def escape_press_handler(event):
             self.search_checkvar.set(False)
-            master.update_search()
+            self.app.update_search()
 
         self.return_press_handler = lambda event: return_press_handler(event)
 
@@ -176,10 +204,10 @@ class DataFrame(tk.Frame):
         self.search_checkvar = tk.BooleanVar()
         self.search_checkvar.set(False)
         self.search_checkbutton = ttk.Checkbutton(self.subframe1, text="Aktiv", variable=self.search_checkvar,
-                                                  command=master.update_search, takefocus=False)
+                                                  command=self.app.update_search, takefocus=False)
         self.search_checkbutton.grid(row=1, column=3, sticky='w')
 
-        self.subframe2 = tk.Frame(self)
+        self.subframe2 = ttk.Frame(self)
         self.subframe2.grid(row=11, column=0, columnspan=2, sticky='nwse')
 
         self.NfoundL = ttk.Label(self.subframe2, text='Gefundene Einträge:', justify=tk.LEFT, anchor=tk.W, width=35)
@@ -192,27 +220,27 @@ class DataFrame(tk.Frame):
         self.totsumL_value = CopyableLabel(self.subframe2, text='', justify=tk.LEFT, width=width_value)
         self.totsumL_value.grid(row=1, column=1, pady=3, sticky='w')
 
-        self.subframe3 = tk.Frame(self)
-        self.subframe3.grid(row=12, column=0, columnspan=2, sticky='nwse')
-        self.header3 = ttk.Label(self.subframe3, text='Konto Statistik', width=30, anchor=tk.CENTER, justify=tk.CENTER,
-                                 font=("Helvetica", 20))
+        # self.subframe3 = tk.Frame(self)
+        # self.subframe3.grid(row=12, column=0, columnspan=2, sticky='nwse')
+        # self.header3 = ttk.Label(self.subframe3, text='Konto Statistik', width=30, anchor=tk.CENTER, justify=tk.CENTER,
+        #                          font=("Helvetica", 20))
+        #
+        #
+        # self.header3.grid(row=0, column=0, columnspan=4, pady=20)
+        #
+        # self.test = ttk.Label(self.subframe3, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W, width=35)
+        # self.test.grid(row=1, column=0, pady=3, sticky='w')
+        # self.test_value = CopyableLabel(self.subframe3, text='', justify=tk.LEFT, width=width_value)
+        # self.test_value.grid(row=1, column=1, pady=3, sticky='w')
 
-
-        self.header3.grid(row=0, column=0, columnspan=4, pady=20)
-
-        self.test = ttk.Label(self.subframe3, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W, width=35)
-        self.test.grid(row=1, column=0, pady=3, sticky='w')
-        self.test_value = CopyableLabel(self.subframe3, text='', justify=tk.LEFT, width=width_value)
-        self.test_value.grid(row=1, column=1, pady=3, sticky='w')
-
-    def update(self):
+    def update_elements(self):
 
         if app.search_active_bool and len(sd.chosen_subset) > 0:
             chosen_subset = sd.chosen_subset
         else:
             chosen_subset = sd.longterm_data
 
-        beg = chosen_subset.at[app.chosen_data, 'Beguenstigter/Zahlungspflichtiger']
+        beg = chosen_subset.loc[app.chosen_data, 'Beguenstigter/Zahlungspflichtiger']
         kontostand = chosen_subset.at[app.chosen_data, 'SumBetrag']
         betrag = chosen_subset.at[app.chosen_data, 'Betrag']
         buchungstag = chosen_subset.at[app.chosen_data, 'Buchungstag']
@@ -271,14 +299,27 @@ class DataFrame(tk.Frame):
         app.update_search()
         q1.put('Update Plot')
 
-class EmbeddedFigure:
-    def __init__(self):
+
+class EmbeddedFigure(ttk.Frame):
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
+
         self.f = plt.Figure(figsize=(10, 10))
         gs = gridspec.GridSpec(1, 1, height_ratios=[1])
         self.subplot1 = self.f.add_subplot(gs[0])
-        ##        self.subplot2=  self.f.add_subplot(gs[1])
-        ##        self.subplot2.text(0.3, 0.25, 'Program written by\nJannick Weisshaupt', size=25)
-        self.f.patch.set_facecolor([240 / 255, 240 / 255, 237 / 255])
+
+        self.canvas = FigureCanvasTkAgg(self.f, self)
+        self.canvas.show()
+        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+
+        self.toolbar = NavigationToolbar2TkAgg(self.canvas, self.master)
+        self.toolbar.update()
+        self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        bg = ttk.Style().lookup('TFrame', 'background')
+        bg_rgb = self.winfo_rgb(bg)
+        self.f.patch.set_facecolor([x / 2 ** 16 for x in bg_rgb])
         ##        self.f.tight_layout()
         self.subplot1.grid('on')
         self.subplot1.set_ylabel('Kontostand')
@@ -369,7 +410,12 @@ class EmbeddedFigure:
         index = np.argmin(np.linalg.norm(resc_data - np.array([xp, yp / resc_fac]), axis=1))
         ##        index = np.argmin( np.abs(self.point_data[:,0]-xp))
         self.last_selected_point = self.point_data[index, :]
-        app.chosen_data = index
+
+        if app.search_active_bool and len(sd.chosen_subset) > 0:
+            app.chosen_data = sd.chosen_subset.index[index]
+        else:
+            app.chosen_data = index
+
         ##        print(sd.longterm_data.ix[index])
         return index
 
@@ -393,7 +439,53 @@ class EmbeddedFigure:
         self.toolbar._positions.clear()
         self.first_plot_bool = True
 
-EF1 = EmbeddedFigure()
+
+class AccountCorrectionWindow(tk.Toplevel):
+    def __init__(self, application, *args, **kwargs):
+        super().__init__(application, *args, **kwargs)
+        self.app = application
+        self.konto_entry = LabelWithEntry(self, 'Aktueller Kontostand', width_label=20)
+        self.konto_entry.grid(row=0, column=0)
+
+        self.ok_button = ttk.Button(self, text='Ok', command=self.ok_event)
+        self.ok_button.grid(row=1, column=0)
+
+    def ok_event(self):
+        try:
+            sd.adjust_to_value(float(self.konto_entry.get().replace('.', '').replace(',', '.')), dt.datetime.now())
+            self.destroy()
+            app.EF1.first_plot_bool = True
+            q1.put('Update Plot')
+        except Exception:
+            pass
+
+
+class LabelFrame(ttk.Frame):
+    def __init__(self, master, application, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.master = master
+        self.app = application
+        self.header = ttk.Label(self, text='Labels', justify=tk.CENTER, font=("Helvetica", 20),
+                                anchor=tk.CENTER)
+        self.header.grid(row=0, column=0, columnspan=2, pady=20)
+
+        self.cbox = NewCBox(self, dict.fromkeys(sd.labels, sd.labels))
+        self.cbox.grid(row=1, column=0, columnspan=2)
+
+        self.cbox.set('Unbekannt')
+
+    def add_label(self):
+        label_tl = ttk.Toplevel(self)
+        label_entry = ttk.Entry(label_tl, width=20)
+        label_entry.pack()
+
+    def update_all(self):
+        self.cbox.set_values(dict.fromkeys(list(sd.labels), list(sd.labels)))
+
+
+
+
+
 
 class StatFigureFrame(tk.Toplevel):
     def __init__(self,master,*args,**kwargs):
@@ -458,13 +550,13 @@ class NewDatabaseFrame(tk.Toplevel):
         self.temp_database_filename = None
         self.csv_loadname = None
 
-        InformationFrame = tk.Frame(self)
+        InformationFrame = ttk.Frame(self)
         InformationFrame.grid(row=0, column=0, sticky='ewns')
 
-        label2 = tk.Label(InformationFrame, text="File Name: ")
+        label2 = ttk.Label(InformationFrame, text="File Name: ")
         label2.grid(row=0, column=0, sticky='w')
 
-        labelDir = tk.Label(InformationFrame, bg='white', relief='ridge', width=60)
+        labelDir = ttk.Label(InformationFrame, bg='white', relief='ridge', width=60)
         labelDir.grid(row=0, column=1, sticky='w', columnspan=2)
 
         def ask_filename_database(labelDir):
@@ -482,19 +574,19 @@ class NewDatabaseFrame(tk.Toplevel):
                                          command=lambda: ask_filename_database(labelDir), takefocus=False)
         SaveDirectoryButton.grid(column=3, row=0, padx=5, pady=3)
 
-        KontostandL = tk.Label(InformationFrame, text="Aktueller Kontostand: ")
+        KontostandL = ttk.Label(InformationFrame, text="Aktueller Kontostand: ")
         KontostandL.grid(row=1, column=0, sticky='w')
 
         self.KontostandL_value = ttk.Entry(InformationFrame, width=10)
         self.KontostandL_value.grid(row=1, column=1, sticky='w')
 
-        KontostandL2 = tk.Label(InformationFrame, text="Bitte im Format 10.000,23 oder 10000,23 eingeben")
+        KontostandL2 = ttk.Label(InformationFrame, text="Bitte im Format 10.000,23 oder 10000,23 eingeben")
         KontostandL2.grid(row=1, column=2, sticky='w', padx=5)
 
-        csvL = tk.Label(InformationFrame, text="Erstes CSV: ")
+        csvL = ttk.Label(InformationFrame, text="Erstes CSV: ")
         csvL.grid(row=2, column=0, sticky='w')
 
-        csvL_value = tk.Label(InformationFrame, bg='white', relief='ridge', width=60)
+        csvL_value = ttk.Label(InformationFrame, bg='white', relief='ridge', width=60)
         csvL_value.grid(row=2, column=1, sticky='w', columnspan=2)
 
         def ask_filename_csv(labelDir):
@@ -510,7 +602,7 @@ class NewDatabaseFrame(tk.Toplevel):
                                takefocus=False)
         csvButton.grid(column=3, row=2, padx=5, pady=3)
 
-        ButtonFrame = tk.Frame(self)
+        ButtonFrame = ttk.Frame(self)
         ButtonFrame.grid(row=1, column=0, columnspan=2, sticky='ewns')
 
         OkBut = ttk.Button(ButtonFrame, text="OK", command=self.ask_new_database)
@@ -558,7 +650,7 @@ class NewDatabaseFrame(tk.Toplevel):
             self.destroy()
 
 
-class Application(tk.Frame):
+class Application(ttk.Frame):
     def create_new_database_frame(self):
         self.new_database_frame = NewDatabaseFrame(self)
 
@@ -585,7 +677,7 @@ class Application(tk.Frame):
 
     def create_new_database(self):
         sd.reset()
-        EF1.reset()
+        self.EF1.reset()
         self.database_filename = None
         self.main_auftragskonto = None
 
@@ -594,11 +686,11 @@ class Application(tk.Frame):
         if not q1.empty():
             q_command = q1.get()
             if q_command == 'Update Plot':
-                EF1.update()
+                self.EF1.update()
             elif q_command == 'Update Dataframe':
-                self.dataframe.update()
+                self.dataframe.update_elements()
             elif q_command == 'Add selected to plot':
-                EF1.add_selected()
+                self.EF1.add_selected()
             else:
                 logging.warning("Command \"" + str(q_command) + "\" in queue could not be executed")
 
@@ -612,8 +704,9 @@ class Application(tk.Frame):
         sd.load_database(OpenFilename, overwrite=True)
         self.database_filename = OpenFilename[:-4]
         self.main_auftragskonto = sd.longterm_data['Auftragskonto'].value_counts().idxmax()
-        EF1.reset()
+        self.EF1.reset()
         self.update_search()
+        self.labelframe.update_all()
         q1.put('Update Plot')
 
     def import_csv(self):
@@ -638,6 +731,7 @@ class Application(tk.Frame):
             messagebox.showerror('Fehler beim Importieren',
                                  'Importieren ist mit Fehler ' + repr(ex1) + ' fehlgeschlagen')
 
+        self.EF1.first_plot_bool = False
         q1.put('Update Plot')
         messagebox.showinfo('Import Bericht',
                             'Eine csv Datei mit {Csv size} Einträgen wurde geladen. {#Duplicate} davon waren schon vorhanden und {#Imported} neue Einträge wurden importiert. Die Datenbank enthält nun {New size} Einträge'.format(
@@ -676,6 +770,10 @@ class Application(tk.Frame):
 
         self.terminal_frame = TerminalFrame(root, shared_vars)
 
+    def open_account_correction_window(self):
+        if self.account_correction_window is None or not self.account_correction_window.winfo_exists():
+            self.account_correction_window = AccountCorrectionWindow(self)
+
     def open_stat_frame(self):
         stat_frame = StatFigureFrame(self)
         stat_frame.create_plots(sd.longterm_data)
@@ -709,12 +807,12 @@ class Application(tk.Frame):
         self.menubar.add_cascade(label="Statistik", menu=self.statmenu)
         self.statmenu.add_command(label="Statistische Übersicht", command=self.open_stat_frame)
 
-        canvasFrame = tk.Frame(self, takefocus=False)
+        canvasFrame = ttk.Frame(self, takefocus=False)
         canvasFrame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         def read_coordinates(event):
-            EF1.canvas._tkcanvas.focus_set()
-            EF1.toolbar.set_cursor(1)
+            self.EF1.canvas._tkcanvas.focus_set()
+            self.EF1.toolbar.set_cursor(1)
             if event.xdata is None or event.ydata is None:
                 return
             if event.button == 1:
@@ -737,17 +835,26 @@ class Application(tk.Frame):
             q1.put('Update Dataframe')
             q1.put('Add selected to plot')
 
-        EF1.canvas = FigureCanvasTkAgg(EF1.f, canvasFrame)
-        EF1.canvas.show()
-        EF1.canvas.mpl_connect('button_press_event', read_coordinates)
-        EF1.canvas.mpl_connect('key_press_event', handle_figure_key_press)
-        EF1.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-        EF1.toolbar = NavigationToolbar2TkAgg(EF1.canvas, canvasFrame)
-        EF1.toolbar.update()
-        EF1.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.EF1 = EmbeddedFigure(canvasFrame)
 
-        self.dataframe = DataFrame(self)
-        self.dataframe.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.EF1.canvas.mpl_connect('button_press_event', read_coordinates)
+        self.EF1.canvas.mpl_connect('key_press_event', handle_figure_key_press)
+
+        self.EF1.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        sideFrame = ttk.Frame(self, takefocus=False)
+        sideFrame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.dataframe = DataFrame(sideFrame, self)
+
+        self.accountmenu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Konto", menu=self.accountmenu)
+        self.accountmenu.add_command(label="Konto Korrektur", command=self.open_account_correction_window)
+        self.accountmenu.add_command(label="Loesche Eintrag", command=self.dataframe.drop_selected)
+        self.dataframe.pack(side=tk.TOP, fill='x', expand=True)
+
+        self.labelframe = LabelFrame(sideFrame, self)
+        self.labelframe.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
     def __init__(self):
         self.search_active_bool = False
@@ -755,16 +862,20 @@ class Application(tk.Frame):
         self.database_filename = None
         self.show_mean_bool = True
 
-        tk.Frame.__init__(self)
+        ttk.Frame.__init__(self)
         self.pack()
         root.protocol('WM_DELETE_WINDOW', self.quit_program)
         root.resizable(width=False, height=False)
         root.title('Control')
+        self.create_widgets()
         root.after(300, self.update_status)
         root.geometry('{}x{}'.format(1400, 850))
-        self.create_widgets()
+
         root.config(menu=self.menubar)
         root.title('Konto Verwaltungssoftware')
+
+        # Windows
+        self.account_correction_window = None
 
         #        sd.load_database('./databases/test_database.pkl')  # for testing faster
         q1.put('Update Plot')

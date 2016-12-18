@@ -16,7 +16,7 @@ class SparkasseDataframe:
     def __init__(self):
         self.longterm_data = None
         self.chosen_subset = None
-        self.labels = None
+        self.labels = set(['Unbekannt'])
 
     def sanitize_data(self, data_in,inplace=True):
         if inplace:
@@ -90,11 +90,12 @@ class SparkasseDataframe:
             raise Exception('database already in memory')
         self.longterm_data = pd.read_pickle(filename)
         self.sanitize_data(self.longterm_data)
-        self.labels = set(self.longterm_data['Label'])
+        self.labels = set(self.longterm_data['Label'].dropna())
 
     def statistical_analysis(self):
         summe = self.longterm_data['SumBetrag']
         print(summe.mean())
+
 
     def find_subset(self, column, value):
         if column == 'Buchungstag':
@@ -115,10 +116,12 @@ class SparkasseDataframe:
     def reset(self):
         self.longterm_data = None
 
-    def find_subset_contains(self, column, string):
+    def find_subset_contains(self, column, string, reset_index=False):
         df = self.longterm_data
         self.chosen_subset = df[df[column].str.contains(string, case=False).fillna(False)]
-        self.chosen_subset.reset_index(drop=True, inplace=True)
+        if reset_index:
+            self.chosen_subset.reset_index(drop=True, inplace=True)
+        return self.chosen_subset
 
     def export_selection(self, filename, filetype=None):
         if self.chosen_subset is None or filetype is None:
@@ -144,6 +147,18 @@ class SparkasseDataframe:
         return self.longterm_data.ix[(self.longterm_data['Betrag'] == info['Betrag']) &
                                    (self.longterm_data['Buchungstag'] == info['Buchungstag']) & (self.longterm_data['Kontonummer'] == info['Kontonummer'])].index
 
+    def set_label(self, df, label, index=None):
+        if index is None:
+            df.loc[:, 'Label'] = label
+        else:
+            df.loc[index, 'Label'] = label
+
+    def set_label_by_subset(self, subset, label):
+        self.longterm_data.loc[subset.index, 'Label'] = label
+
+
+
+
 if __name__ == "__main__":
     sd = SparkasseDataframe()
     ##    sd.load_data('umsatz.CSV')
@@ -153,6 +168,11 @@ if __name__ == "__main__":
     ##
     ##    sd.adjust_to_value(5250,'2015-11-15')
     sd.load_database('./databases/jannick_sparkasse.pkl')
+    sd.sanitize_data(sd.longterm_data, inplace=True)
+    mbi = sd.find_subset_contains('Beguenstigter/Zahlungspflichtiger', 'forschungs', reset_index=False)
+    sd.set_label_by_subset(mbi, 'Gehalt')
+    sd.save_database('test')
+
     ##    sd.adjust_to_value(400,'2016-02-20')
     ##    sd.save_database('./databases/familienkonto_sparkasse',overwrite=True)
     # ax1 = sd.longterm_data.plot(x='Buchungstag', y='SumBetrag', marker='.', linewidth=2)
