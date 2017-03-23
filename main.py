@@ -26,12 +26,12 @@ from SparkasseDataframe import SparkasseDataframe
 from terminal_frame import TerminalFrame
 
 import matplotlib.style
+
 matplotlib.style.use('classic')
 font = dict(family='serif', size=18)
 plt.rc('font', **font)
 
 sd = SparkasseDataframe()
-
 
 if not os.path.exists('./logfiles'):
     os.makedirs('./logfiles')
@@ -99,7 +99,6 @@ class NewCBox(ttk.Combobox):
         self['values'] = list(dictionary.keys())
 
 
-
 class DataFrame(tk.Frame):
     def __init__(self, master, app, *arg, **kwargs):
         self.master = master
@@ -113,7 +112,7 @@ class DataFrame(tk.Frame):
                                 anchor=tk.CENTER)
         self.header.grid(row=0, column=0, columnspan=2, pady=20)
 
-        self.begL = ttk.Label(self, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W,width=35)
+        self.begL = ttk.Label(self, text='Begünstigter/Zahlungspflichtiger:', justify=tk.LEFT, anchor=tk.W, width=35)
         self.begL.grid(row=1, column=0, pady=3, sticky='w')
         self.begL_value = CopyableLabel(self, text='', justify=tk.LEFT, width=width_value)
         self.begL_value.grid(row=1, column=1, pady=3, sticky='w')
@@ -283,14 +282,14 @@ class DataFrame(tk.Frame):
             self.totsumL_value.set_text('')
 
     def drop_selected(self):
-        if not messagebox.askokcancel('Nachfrage','Moechten Sie diesen Eintrag wirklich loeschen',parent=self):
+        if not messagebox.askokcancel('Nachfrage', 'Moechten Sie diesen Eintrag wirklich loeschen', parent=self):
             return
         if app.search_active_bool:
             chosen_subset = sd.chosen_subset
             betrag = chosen_subset.at[app.chosen_data, 'Betrag']
             buchungstag = chosen_subset.at[app.chosen_data, 'Buchungstag']
             kontonummer = chosen_subset.at[app.chosen_data, 'Kontonummer']
-            info = {'Kontonummer':kontonummer, 'Buchungstag':buchungstag, 'Betrag':betrag}
+            info = {'Kontonummer': kontonummer, 'Buchungstag': buchungstag, 'Betrag': betrag}
             app.chosen_data = int(sd.find_entry(info)[0])
         if app.chosen_data is None:
             return
@@ -303,7 +302,6 @@ class DataFrame(tk.Frame):
 class EmbeddedFigure(ttk.Frame):
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-
 
         self.f = plt.Figure(figsize=(10, 10))
         gs = gridspec.GridSpec(1, 1, height_ratios=[1])
@@ -363,7 +361,6 @@ class EmbeddedFigure(ttk.Frame):
             plot3 = sd.chosen_subset.plot(x='Buchungstag', y='SumBetrag', grid=True, marker='o', linewidth=0,
                                           ax=self.subplot1, color='g', legend=False, ms=10)
 
-
         lines = self.subplot1.get_lines()
         xdata = lines[line_index].get_data()[0]
         ydata = lines[line_index].get_data()[1]
@@ -390,7 +387,7 @@ class EmbeddedFigure(ttk.Frame):
         else:
             xlim = self.subplot1.get_xlim()
             xlim_diff = xlim[1] - xlim[0]
-            self.subplot1.set_xlim(xlim[0]-xlim_diff/40,xlim[1]+xlim_diff/40)
+            self.subplot1.set_xlim(xlim[0] - xlim_diff / 40, xlim[1] + xlim_diff / 40)
 
         self.f.tight_layout()
         plt.pause(0.001)
@@ -483,15 +480,11 @@ class LabelFrame(ttk.Frame):
         self.cbox.set_values(dict.fromkeys(list(sd.labels), list(sd.labels)))
 
 
-
-
-
-
 class StatFigureFrame(tk.Toplevel):
-    def __init__(self,master,*args,**kwargs):
-        super().__init__(master,*args,**kwargs)
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
         self.f = plt.Figure(figsize=(20, 12))
-        gs = gridspec.GridSpec(2, 3, height_ratios=[1,1])
+        gs = gridspec.GridSpec(2, 3, height_ratios=[1, 1])
         self.subplot1 = self.f.add_subplot(gs[0])
         self.subplot2 = self.f.add_subplot(gs[1])
         self.f.patch.set_facecolor([240 / 255, 240 / 255, 237 / 255])
@@ -502,7 +495,7 @@ class StatFigureFrame(tk.Toplevel):
         self.toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-    def create_plots(self,account_data):
+    def create_plots(self, account_data):
         def convert_to_days(date):
             return date.day
 
@@ -511,8 +504,8 @@ class StatFigureFrame(tk.Toplevel):
         binned_res = np.zeros(31)
         n_entries = np.zeros(31) + 1e-12
 
-        total_time_days = (account_data['Buchungstag'].iloc[-1] - account_data['Buchungstag'].iloc[0] ).days
-        total_time_months = total_time_days/30
+        total_time_days = (account_data['Buchungstag'].iloc[-1] - account_data['Buchungstag'].iloc[0]).days
+        total_time_months = total_time_days / 30
 
         for index, row in account_data.iterrows():
             if row['Verwendungszweck'] != 'Konto Korrektur':
@@ -520,17 +513,16 @@ class StatFigureFrame(tk.Toplevel):
                 binned_res[day - 1] += row['Betrag']
                 n_entries[day - 1] += 1
 
-        self.subplot1.plot(days, 0*days+ (binned_res / total_time_months).mean(),'r--',alpha=0.5,linewidth=2)
-        self.subplot1.bar(days, binned_res/total_time_months, color=[0.6,0.6,0.6], align='center')
+        self.subplot1.plot(days, 0 * days + (binned_res / total_time_months).mean(), 'r--', alpha=0.5, linewidth=2)
+        self.subplot1.bar(days, binned_res / total_time_months, color=[0.6, 0.6, 0.6], align='center')
         self.subplot1.set_title('Ausgaben pro Monat')
         self.subplot1.set_xlabel('Tag im Monat')
         self.subplot1.set_ylabel('Betrag [Euro]')
-        self.subplot1.set_xlim(0,31.5)
+        self.subplot1.set_xlim(0, 31.5)
 
-
-        self.subplot2.bar(days, binned_res / n_entries, color=[0.6,0.6,0.6], align='center')
+        self.subplot2.bar(days, binned_res / n_entries, color=[0.6, 0.6, 0.6], align='center')
         self.subplot2.set_title('Mittlerer Betrag')
-        self.subplot2.set_xlim(0,31.5)
+        self.subplot2.set_xlim(0, 31.5)
         self.subplot2.set_xlabel('Tag im Monat')
         self.subplot2.set_ylabel('Mittlerer Betrag [Euro]')
 
@@ -751,7 +743,8 @@ class Application(ttk.Frame):
             sd.save_database(SaveFilename, overwrite=True)
 
     def export_selection(self, filetype=None):
-        save_filename = filedialog.asksaveasfilename(initialdir='./databases', filetypes=[('CSV Datenbank', '.csv'), ('PKL Datenbank', '.pkl')])
+        save_filename = filedialog.asksaveasfilename(initialdir='./databases',
+                                                     filetypes=[('CSV Datenbank', '.csv'), ('PKL Datenbank', '.pkl')])
 
         if save_filename == '':
             return
@@ -760,8 +753,8 @@ class Application(ttk.Frame):
 
     def open_terminal_frame(self):
         if sd.longterm_data is not None:
-            shared_vars = {'Konto': sd.longterm_data, 'Betrag':sd.longterm_data['Betrag'],
-                       'Kontostand':sd.longterm_data['SumBetrag'], 'Buchungstag':sd.longterm_data['Buchungstag']}
+            shared_vars = {'Konto': sd.longterm_data, 'Betrag': sd.longterm_data['Betrag'],
+                           'Kontostand': sd.longterm_data['SumBetrag'], 'Buchungstag': sd.longterm_data['Buchungstag']}
         else:
             shared_vars = None
 
@@ -816,7 +809,7 @@ class Application(ttk.Frame):
             if event.xdata is None or event.ydata is None:
                 return
             if event.button == 1:
-                EF1.nearest_point(event.xdata, event.ydata)
+                self.EF1.nearest_point(event.xdata, event.ydata)
                 q1.put('Update Dataframe')
                 q1.put('Add selected to plot')
 
@@ -831,7 +824,7 @@ class Application(ttk.Frame):
             else:
                 return
 
-            EF1.last_selected_point = EF1.point_data[app.chosen_data, :]
+            self.EF1.last_selected_point = self.EF1.point_data[app.chosen_data, :]
             q1.put('Update Dataframe')
             q1.put('Add selected to plot')
 
@@ -890,6 +883,7 @@ class Application(ttk.Frame):
                           event))
         root.bind_all('<Control-g>', lambda event: self.import_csv())
         root.bind_all('<Control-t>', lambda event: self.open_terminal_frame())
+
 
 root = tk.Tk()
 app = Application()
