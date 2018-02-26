@@ -1,3 +1,5 @@
+#!/usr/bin/python3.6
+# -*- coding: utf-8 -*-
 from tkinter import ttk
 import tkinter as tk
 from tkinter import messagebox
@@ -49,7 +51,7 @@ logging.basicConfig(level=logging.DEBUG,
 logging.info('Program started')
 
 myappid = u'Konto-Verwaltung'  # arbitrary string
-ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+# ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 q1 = queue.Queue()
 
@@ -326,7 +328,6 @@ class EmbeddedFigure(ttk.Frame):
         self.point_data = None
         self.single_point_plot = None
         self.first_plot_bool = True
-        self.toolbar = None
 
     def update(self):
         if not self.first_plot_bool:
@@ -354,10 +355,10 @@ class EmbeddedFigure(ttk.Frame):
             line_index = 0
 
         plot1 = sd.longterm_data.plot(x='Buchungstag', y='SumBetrag', grid=True, linewidth=3, ax=self.subplot1,
-                                      color=[255 / 255, 19 / 255, 0], legend=False, drawstyle='steps-post',
-                                      alpha=plot_alpha)
+                                      color='#E88400', legend=False, drawstyle='steps-post',
+                                      alpha=plot_alpha * 0.8)
         plot2 = sd.longterm_data.plot(x='Buchungstag', y='SumBetrag', grid=True, marker='o', linewidth=0,
-                                      ax=self.subplot1, color=[255 / 255, 19 / 255, 0], legend=False, alpha=plot_alpha)
+                                      ax=self.subplot1, color='#E80C46', legend=False, alpha=plot_alpha)
 
         if app.search_active_bool and len(sd.chosen_subset) > 0:
             plot3 = sd.chosen_subset.plot(x='Buchungstag', y='SumBetrag', grid=True, marker='o', linewidth=0,
@@ -393,7 +394,7 @@ class EmbeddedFigure(ttk.Frame):
             self.subplot1.set_xlim(xlim[0]-xlim_diff/40,xlim[1]+xlim_diff/40)
 
         self.f.tight_layout()
-        plt.pause(0.001)
+        # plt.pause(0.001)
         self.canvas.draw()
         self.first_plot_bool = False
 
@@ -435,8 +436,8 @@ class EmbeddedFigure(ttk.Frame):
 
     def reset(self):
         self.subplot1.cla()
-        self.toolbar._views.clear()
-        self.toolbar._positions.clear()
+        # self.toolbar._views.clear()
+        # self.toolbar._positions.clear()
         self.first_plot_bool = True
 
 
@@ -731,7 +732,7 @@ class Application(ttk.Frame):
             messagebox.showerror('Fehler beim Importieren',
                                  'Importieren ist mit Fehler ' + repr(ex1) + ' fehlgeschlagen')
 
-        self.EF1.first_plot_bool = False
+        self.EF1.first_plot_bool = True
         q1.put('Update Plot')
         messagebox.showinfo('Import Bericht',
                             'Eine csv Datei mit {Csv size} Einträgen wurde geladen. {#Duplicate} davon waren schon vorhanden und {#Imported} neue Einträge wurden importiert. Die Datenbank enthält nun {New size} Einträge'.format(
@@ -780,6 +781,7 @@ class Application(ttk.Frame):
 
     def quit_program(self):
         root.destroy()
+        sys.exit()
 
     def create_widgets(self):
         self.menubar = tk.Menu(self, tearoff=0)
@@ -816,7 +818,7 @@ class Application(ttk.Frame):
             if event.xdata is None or event.ydata is None:
                 return
             if event.button == 1:
-                EF1.nearest_point(event.xdata, event.ydata)
+                self.EF1.nearest_point(event.xdata, event.ydata)
                 q1.put('Update Dataframe')
                 q1.put('Add selected to plot')
 
@@ -831,7 +833,7 @@ class Application(ttk.Frame):
             else:
                 return
 
-            EF1.last_selected_point = EF1.point_data[app.chosen_data, :]
+            self.EF1.last_selected_point = self.EF1.point_data[app.chosen_data, :]
             q1.put('Update Dataframe')
             q1.put('Add selected to plot')
 
@@ -869,7 +871,7 @@ class Application(ttk.Frame):
         root.title('Control')
         self.create_widgets()
         root.after(300, self.update_status)
-        root.geometry('{}x{}'.format(1400, 850))
+        root.geometry('{}x{}'.format(1600, 850))
 
         root.config(menu=self.menubar)
         root.title('Konto Verwaltungssoftware')
@@ -892,5 +894,10 @@ class Application(ttk.Frame):
         root.bind_all('<Control-t>', lambda event: self.open_terminal_frame())
 
 root = tk.Tk()
+
+root.style = ttk.Style()
+# ('clam', 'alt', 'default', 'classic')
+root.style.theme_use("clam")
+
 app = Application()
 app.mainloop()
