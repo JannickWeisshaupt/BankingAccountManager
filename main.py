@@ -18,7 +18,7 @@ import datetime as dt
 import time
 import ctypes
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 
 from matplotlib import gridspec
 import logging
@@ -310,10 +310,10 @@ class EmbeddedFigure(ttk.Frame):
         self.subplot1 = self.f.add_subplot(gs[0])
 
         self.canvas = FigureCanvasTkAgg(self.f, self)
-        self.canvas.show()
+        self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
-        self.toolbar = NavigationToolbar2TkAgg(self.canvas, self.master)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.master)
         self.toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -549,7 +549,7 @@ class NewDatabaseFrame(tk.Toplevel):
         label2 = ttk.Label(InformationFrame, text="File Name: ")
         label2.grid(row=0, column=0, sticky='w')
 
-        labelDir = ttk.Label(InformationFrame, bg='white', relief='ridge', width=60)
+        labelDir = ttk.Label(InformationFrame, background='white', relief='ridge', width=60)
         labelDir.grid(row=0, column=1, sticky='w', columnspan=2)
 
         def ask_filename_database(labelDir):
@@ -579,7 +579,7 @@ class NewDatabaseFrame(tk.Toplevel):
         csvL = ttk.Label(InformationFrame, text="Erstes CSV: ")
         csvL.grid(row=2, column=0, sticky='w')
 
-        csvL_value = ttk.Label(InformationFrame, bg='white', relief='ridge', width=60)
+        csvL_value = ttk.Label(InformationFrame, background='white', relief='ridge', width=60)
         csvL_value.grid(row=2, column=1, sticky='w', columnspan=2)
 
         def ask_filename_csv(labelDir):
