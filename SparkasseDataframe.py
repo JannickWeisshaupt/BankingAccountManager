@@ -36,8 +36,8 @@ class SparkasseDataframe:
     def load_data(self, filename):
 
         data = pd.read_csv(filename, sep=';', error_bad_lines=True, encoding="ISO-8859-1", decimal=",")
-        data.drop(['Valutadatum'], axis=1, inplace=True)
-        data['Buchungstag'] = pd.to_datetime(data['Buchungstag'], dayfirst=True)
+        data.drop(['Buchungstag'], axis=1, inplace=True)
+        data['Buchungstag'] = pd.to_datetime(data['Valutadatum'], dayfirst=True)
         data.sort_values(by='Buchungstag', ascending=True, inplace=True)
         data['Betrag'].astype(float)
         ##        data['SumBetrag'] = data['Betrag'].cumsum()

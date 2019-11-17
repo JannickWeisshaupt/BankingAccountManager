@@ -35,17 +35,13 @@ plt.rc('font', **font)
 
 sd = SparkasseDataframe()
 
-if not os.path.exists('./logfiles'):
-    os.makedirs('./logfiles')
+if not os.path.exists('~/.banking_manager'):
+    os.makedirs('~/.banking_manager')
 
-if not os.path.exists('./databases'):
-    os.makedirs('./databases')
-
-if not os.path.exists('./CSV'):
-    os.makedirs('./CSV')
 
 logging.basicConfig(level=logging.DEBUG,
-                    filename="logfiles/logfile_" + str(dt.datetime.date(dt.datetime.today())) + ".log", filemode="a+",
+                    filename="~/.banking_manager/logfile_" + str(dt.datetime.date(dt.datetime.today())) + ".log",
+                    filemode="a+",
                     format="%(asctime)-15s %(levelname)-8s %(message)s")
 
 logging.info('Program started')
@@ -688,7 +684,7 @@ class Application(ttk.Frame):
                 logging.warning("Command \"" + str(q_command) + "\" in queue could not be executed")
 
     def load_database(self):
-        OpenFilename = filedialog.askopenfilename(initialdir='./databases',
+        OpenFilename = filedialog.askopenfilename(initialdir='~',
                                                   filetypes=[('Databases', '.pkl'), ('all files', '.*')])
 
         if len(OpenFilename) == 0:
@@ -703,7 +699,7 @@ class Application(ttk.Frame):
         q1.put('Update Plot')
 
     def import_csv(self):
-        OpenFilename = filedialog.askopenfilename(initialdir='./csv',
+        OpenFilename = filedialog.askopenfilename(initialdir='~',
                                                   filetypes=[('CSV Datenbank', '.csv'), ('all files', '.*')])
 
         if len(OpenFilename) == 0:
@@ -713,6 +709,7 @@ class Application(ttk.Frame):
         except Exception as ex1:
             messagebox.showerror('Fehler beim Importieren',
                                  'Importieren ist mit Fehler ' + repr(ex1) + ' fehlgeschlagen')
+            return
 
         if main_auftragkonto_load != self.main_auftragskonto and self.main_auftragskonto is not None:
             if not messagebox.askokcancel('Sicherheitsabfrage',
@@ -737,14 +734,14 @@ class Application(ttk.Frame):
             self.save_database_as()
 
     def save_database_as(self):
-        SaveFilename = filedialog.asksaveasfilename(initialdir='./databases')
+        SaveFilename = filedialog.asksaveasfilename(initialdir='~')
         if SaveFilename[-4:] == '.pkl' or SaveFilename[-4:] == '.csv':
             SaveFilename = SaveFilename[:-4]
         if not len(SaveFilename) == 0:
             sd.save_database(SaveFilename, overwrite=True)
 
     def export_selection(self, filetype=None):
-        save_filename = filedialog.asksaveasfilename(initialdir='./databases',
+        save_filename = filedialog.asksaveasfilename(initialdir='~',
                                                      filetypes=[('CSV Datenbank', '.csv'), ('PKL Datenbank', '.pkl')])
 
         if save_filename == '':
